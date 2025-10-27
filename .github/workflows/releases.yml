@@ -1,0 +1,248 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: "Select version bump"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/snak-api
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    outputs:
+      new-version: ${{ steps.bump.outputs.new-version }}
+      new-tag: ${{ steps.bump.outputs.new-tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Bump version
+        id: bump
+        env:
+          RELEASE_TYPE: ${{ inputs.release-type }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const releaseType = process.env.RELEASE_TYPE;
+          const lernaPath = path.join(process.cwd(), 'lerna.json');
+          const packagePath = path.join(process.cwd(), 'package.json');
+
+          if (!releaseType) {
+            throw new Error('Release type is not defined');
+          }
+
+          const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const writeJson = (file, data) => {
+            fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
+          };
+
+          const bump = (version, type) => {
+            const parts = version.split('.').map((part) => Number(part));
+            if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+              throw new Error(`Invalid semver string: ${version}`);
+            }
+
+            let [major, minor, patch] = parts;
+
+            switch (type) {
+              case 'major':
+                major += 1;
+                minor = 0;
+                patch = 0;
+                break;
+              case 'minor':
+                minor += 1;
+                patch = 0;
+                break;
+              case 'patch':
+                patch += 1;
+                break;
+              default:
+                throw new Error(`Unsupported release type: ${type}`);
+            }
+
+            return [major, minor, patch].join('.');
+          };
+
+          const lerna = readJson(lernaPath);
+          const pkg = readJson(packagePath);
+
+          const current = lerna.version || pkg.version;
+          const next = bump(current, releaseType);
+
+          lerna.version = next;
+          pkg.version = next;
+
+          writeJson(lernaPath, lerna);
+          writeJson(packagePath, pkg);
+
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `new-version=${next}\nnew-tag=v${next}\n`
+          );
+          NODE
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit version bump
+        env:
+          RELEASE_VERSION: ${{ steps.bump.outputs.new-version }}
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit; aborting."
+            exit 1
+          fi
+          git add package.json lerna.json
+          git commit -m "chore(release): v${RELEASE_VERSION}"
+
+      - name: Push changes
+        run: git push origin HEAD:main
+
+  build-and-push-image:
+    needs: bump-version
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ needs.bump-version.outputs.new-version }}
+      RELEASE_TAG: ${{ needs.bump-version.outputs.new-tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compute image name
+        id: vars
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: echo "image=${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image }}
+          tags: |
+            type=raw,value=${{ env.RELEASE_TAG }}
+            type=raw,value=latest
+
+      - name: Build server image for verification
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./packages/server/Dockerfile
+          push: false
+          load: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test server image
+        run: |
+          docker run --rm \
+            --entrypoint node \
+            ${{ env.REGISTRY }}/${{ steps.vars.outputs.image }}:${{ env.RELEASE_TAG }} \
+            --version
+
+      - name: Check if image tag already exists
+        run: |
+          if docker manifest inspect ${{ env.REGISTRY }}/${{ steps.vars.outputs.image }}:${{ env.RELEASE_TAG }} > /dev/null 2>&1; then
+            echo "Image tag ${{ env.RELEASE_TAG }} already exists in GHCR. Aborting."
+            exit 1
+          fi
+
+      - name: Build & push server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./packages/server/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  finalize-release:
+    needs:
+      - bump-version
+      - build-and-push-image
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ needs.bump-version.outputs.new-version }}
+      RELEASE_TAG: ${{ needs.bump-version.outputs.new-tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Fetch tags
+        run: git fetch --tags
+
+      - name: Ensure tag does not exist
+        run: |
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists. Aborting release."
+            exit 1
+          fi
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        run: |
+          git tag "$RELEASE_TAG"
+          git push origin "$RELEASE_TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          generate_release_notes: true

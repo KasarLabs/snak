@@ -79,6 +79,21 @@ CREATE TYPE rag_config AS (
     top_k INTEGER
 );
 
+-- Agent configuration output type for function returns
+CREATE TYPE agent_config_output AS (
+    id UUID,
+    user_id UUID,
+    profile agent_profile,
+    mcp_servers JSONB,
+    graph graph_config,
+    memory memory_config,
+    rag rag_config,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    avatar_image BYTEA,
+    avatar_mime_type VARCHAR(50)
+);
+
 -- ============================================================================
 -- MAIN AGENTS TABLE
 -- ============================================================================
@@ -106,10 +121,10 @@ CREATE TABLE agents (
     -- Memory settings (composite type) - MANDATORY
     memory memory_config NOT NULL,
     
-    -- RAG settings (composite type) - MANDATORY
-    rag rag_config NOT NULL,
-    
-    -- Metadata fields
+-- RAG settings (composite type) - MANDATORY
+rag rag_config NOT NULL,
+
+-- Metadata fields
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
@@ -280,7 +295,8 @@ CREATE OR REPLACE FUNCTION update_agent_complete(
 ) RETURNS TABLE(
   success BOOLEAN,
   message TEXT,
-  updated_agent_id UUID
+  updated_agent_id UUID,
+  agent_data JSONB
 ) AS $$
 BEGIN
   -- Update only provided fields
@@ -368,9 +384,30 @@ BEGIN
   WHERE id = p_agent_id AND user_id = p_user_id;
   
   IF FOUND THEN
-    RETURN QUERY SELECT TRUE, 'Agent updated successfully', p_agent_id;
+    RETURN QUERY 
+    SELECT 
+      TRUE, 
+      'Agent updated successfully', 
+      p_agent_id,
+      to_jsonb(
+        ROW(
+          a.id,
+          a.user_id,
+          a.profile,
+          a.mcp_servers,
+          a.graph,
+          a.memory,
+          a.rag,
+          a.created_at,
+          a.updated_at,
+          NULL::BYTEA,
+          a.avatar_mime_type
+        )::agent_config_output
+      )
+    FROM agents a
+    WHERE a.id = p_agent_id AND a.user_id = p_user_id;
   ELSE
-    RETURN QUERY SELECT FALSE, 'Agent not found or unauthorized', NULL::UUID;
+    RETURN QUERY SELECT FALSE, 'Agent not found or unauthorized', NULL::UUID, NULL::JSONB;
   END IF;
 END;
 $$ LANGUAGE plpgsql;

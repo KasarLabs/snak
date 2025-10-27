@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { Postgres } from '@snakagent/database';
+import { agents } from '@snakagent/database/queries';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { SelectAgentSchema } from './schemas/common.schemas.js';
@@ -18,47 +18,19 @@ export function readAgentTool(
     func: async (input) => {
       try {
         const userId = agentConfig.user_id;
-
-        const selectColumns = [
-          'id',
-          'row_to_json(profile) as profile',
-          'mcp_servers as "mcp_servers"',
-          'row_to_json(graph) as graph',
-          'row_to_json(memory) as memory',
-          'row_to_json(rag) as rag',
-          `CASE
-    WHEN avatar_image IS NOT NULL AND avatar_mime_type IS NOT NULL
-    THEN CONCAT('data:', avatar_mime_type, ';base64,', encode(avatar_image, 'base64'))
-    ELSE NULL
-  END as "avatarUrl"`,
-          'avatar_mime_type',
-          'created_at',
-          'updated_at',
-        ];
-
-        let query: Postgres.Query;
         const searchBy = input.searchBy === 'id' ? 'id' : 'name';
 
-        if (searchBy === 'id') {
-          query = new Postgres.Query(
-            `SELECT ${selectColumns.join(', ')} FROM agents WHERE id = $1 AND user_id = $2`,
-            [input.identifier, userId]
-          );
-        } else {
-          query = new Postgres.Query(
-            `SELECT ${selectColumns.join(', ')} FROM agents WHERE (profile).name = $1 AND user_id = $2`,
-            [input.identifier, userId]
-          );
-        }
+        const agent = await agents.readAgent(
+          input.identifier,
+          userId,
+          searchBy
+        );
 
-        const result =
-          await Postgres.query<AgentConfig.OutputWithoutUserId>(query);
-
-        if (result.length > 0) {
+        if (agent) {
           return JSON.stringify({
             success: true,
             message: 'Agent configuration retrieved successfully',
-            data: result[0],
+            data: agent,
           });
         } else {
           return JSON.stringify({

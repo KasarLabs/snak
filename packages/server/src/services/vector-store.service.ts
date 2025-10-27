@@ -1,5 +1,5 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { Postgres } from '@snakagent/database';
+import { Injectable } from '@nestjs/common';
+import { rag } from '@snakagent/database/queries';
 
 @Injectable()
 export class VectorStoreService {
@@ -12,26 +12,8 @@ export class VectorStoreService {
   async listDocuments(
     agentId: string,
     userId: string
-  ): Promise<
-    {
-      document_id: string;
-      original_name: string;
-      mime_type: string;
-      size: number;
-    }[]
-  > {
-    const q = new Postgres.Query(
-      `SELECT dv.document_id,
-        (SELECT DISTINCT original_name FROM document_vectors dv2 WHERE dv2.document_id = dv.document_id LIMIT 1) AS original_name,
-        (SELECT DISTINCT mime_type FROM document_vectors dv2 WHERE dv2.document_id = dv.document_id LIMIT 1) AS mime_type,
-        SUM(LENGTH(dv.content)) AS size
-       FROM document_vectors dv
-       INNER JOIN agents a ON a.id = dv.agent_id
-       WHERE dv.agent_id = $1 AND a.user_id = $2
-       GROUP BY dv.document_id`,
-      [agentId, userId]
-    );
-    return await Postgres.query(q);
+  ): Promise<rag.DocumentMetadata[]> {
+    return await rag.listDocuments(agentId, userId);
   }
 
   /**
@@ -45,24 +27,8 @@ export class VectorStoreService {
     agentId: string,
     documentId: string,
     userId: string
-  ): Promise<
-    {
-      id: string;
-      chunk_index: number;
-      content: string;
-      original_name: string;
-      mime_type: string;
-    }[]
-  > {
-    const q = new Postgres.Query(
-      `SELECT dv.id, dv.chunk_index, dv.content, dv.original_name, dv.mime_type
-       FROM document_vectors dv
-       INNER JOIN agents a ON a.id = dv.agent_id
-       WHERE dv.agent_id = $1 AND dv.document_id = $2 AND a.user_id = $3
-       ORDER BY dv.chunk_index ASC`,
-      [agentId, documentId, userId]
-    );
-    return await Postgres.query(q);
+  ): Promise<rag.DocumentChunk[]> {
+    return await rag.getDocument(agentId, documentId, userId);
   }
 
   /**
@@ -76,15 +42,6 @@ export class VectorStoreService {
     documentId: string,
     userId: string
   ): Promise<void> {
-    const q = new Postgres.Query(
-      `DELETE FROM document_vectors 
-       WHERE agent_id = $1 AND document_id = $2
-       AND EXISTS (
-         SELECT 1 FROM agents a 
-         WHERE a.id = document_vectors.agent_id AND a.user_id = $3
-       )`,
-      [agentId, documentId, userId]
-    );
-    await Postgres.query(q);
+    return await rag.deleteDocument(agentId, documentId, userId);
   }
 }

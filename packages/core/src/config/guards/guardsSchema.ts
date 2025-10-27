@@ -185,7 +185,6 @@ const AgentRagConfigSchema = z.object({
 
 // Agents configuration schema
 const AgentsConfigSchema = z.object({
-  prompts_id_max_length: positiveInteger,
   profile: AgentProfileConfigSchema,
   mcp_servers: McpServersConfigSchema,
   graph: AgentGraphConfigSchema,

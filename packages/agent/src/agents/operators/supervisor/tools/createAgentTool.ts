@@ -1,5 +1,4 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { Postgres } from '@snakagent/database';
 import {
   AgentConfig,
   McpServerConfig,
@@ -8,31 +7,15 @@ import {
   validateAgentQuotas,
   AgentDatabaseInterface,
 } from '@snakagent/core';
-import {
-  TASK_EXECUTOR_SYSTEM_PROMPT,
-  TASK_MANAGER_SYSTEM_PROMPT,
-  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-  TASK_VERIFIER_SYSTEM_PROMPT,
-} from '@prompts/index.js';
+
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
-import { redisAgents } from '@snakagent/database/queries';
+import { redisAgents, agents } from '@snakagent/database/queries';
 import { validateAgentProperties } from '../utils/agents.validators.js';
 
 const dbInterface: AgentDatabaseInterface = {
-  getTotalAgentsCount: async () => {
-    const query = new Postgres.Query('SELECT COUNT(*) FROM agents');
-    const result = await Postgres.query<{ count: string }>(query);
-    return parseInt(result[0].count, 10);
-  },
-  getUserAgentsCount: async (userId: string) => {
-    const query = new Postgres.Query(
-      'SELECT COUNT(*) FROM agents WHERE user_id = $1',
-      [userId]
-    );
-    const result = await Postgres.query<{ count: string }>(query);
-    return parseInt(result[0].count, 10);
-  },
+  getTotalAgentsCount: agents.getTotalAgentsCount,
+  getUserAgentsCount: agents.getUserAgentsCount,
 };
 
 export function createAgentTool(
@@ -117,25 +100,13 @@ export function createAgentTool(
           notes.push(nameNote);
         }
 
-        const { created: promptsCreated } = await ensurePromptsExist(userId);
-        if (promptsCreated) {
-          notes.push('Default prompts initialized for the user.');
-        }
-
         // Insert into database
-        const payload: Record<string, unknown> = {
-          ...agentConfigData,
-        };
-
-        const insertQuery = new Postgres.Query(
-          'SELECT id, user_id, profile, mcp_servers, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type FROM insert_agent_from_json($1, $2)',
-          [userId, JSON.stringify(payload)]
+        const createdAgent = await agents.insertAgentFromJson(
+          userId,
+          agentConfigData
         );
 
-        const result =
-          await Postgres.query<AgentConfig.OutputWithId>(insertQuery);
-
-        if (result.length === 0) {
+        if (!createdAgent) {
           logger.error(
             'Failed to create agent: insert_agent_from_json returned no rows'
           );
@@ -145,8 +116,6 @@ export function createAgentTool(
               'Failed to create agent - database insertion no data returned',
           });
         }
-
-        const createdAgent = result[0];
 
         try {
           await redisAgents.saveAgent(createdAgent);
@@ -257,17 +226,13 @@ async function resolveUniqueAgentName(
   group: string,
   userId: string
 ): Promise<{ name: string; note?: string }> {
-  const query = new Postgres.Query(
-    `SELECT (profile).name FROM agents WHERE user_id = $1 AND (profile)."group" = $2 AND ((profile).name = $3 OR (profile).name LIKE $3 || '-%') ORDER BY LENGTH((profile).name) DESC, (profile).name DESC LIMIT 1`,
-    [userId, group, baseName]
-  );
+  const existingAgent = await agents.checkAgentNameExists(userId, baseName);
 
-  const result = await Postgres.query<{ name: string }>(query);
-  if (result.length === 0) {
+  if (!existingAgent) {
     return { name: baseName };
   }
 
-  const existingName = result[0].name;
+  const existingName = existingAgent.name;
   if (existingName === baseName) {
     return {
       name: `${baseName}-1`,
@@ -289,44 +254,4 @@ async function resolveUniqueAgentName(
     name: `${baseName}-1`,
     note: `Name collision detected; defaulted to suffix "-1".`,
   };
-}
-
-async function ensurePromptsExist(
-  userId: string
-): Promise<{ created: boolean }> {
-  const existingQuery = new Postgres.Query(
-    'SELECT id FROM prompts WHERE user_id = $1 LIMIT 1',
-    [userId]
-  );
-  const existing = await Postgres.query<{ id: string }>(existingQuery);
-  if (existing.length > 0) {
-    return { created: false };
-  }
-
-  const insertQuery = new Postgres.Query(
-    `INSERT INTO prompts (
-      user_id,
-      task_executor_prompt,
-      task_manager_prompt,
-      task_verifier_prompt,
-      task_memory_manager_prompt,
-      public
-    ) VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id`,
-    [
-      userId,
-      TASK_EXECUTOR_SYSTEM_PROMPT,
-      TASK_MANAGER_SYSTEM_PROMPT,
-      TASK_VERIFIER_SYSTEM_PROMPT,
-      TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-      false,
-    ]
-  );
-
-  const created = await Postgres.query<{ id: string }>(insertQuery);
-  if (created.length === 0) {
-    throw new Error('Failed to create default prompts for the user');
-  }
-
-  return { created: true };
 }

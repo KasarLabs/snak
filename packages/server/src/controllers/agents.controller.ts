@@ -188,12 +188,8 @@ export class AgentsController {
         throw new BadRequestException(updateResult.message);
       }
 
-      // Fetch updated agent
-      const agent = await agents.getAgentById(id, userId);
-
-      if (!agent) {
-        throw new BadRequestException('Agent not found after update');
-      }
+      const { user_id: _, ...agent }: AgentConfig.OutputWithoutUserId =
+        updateResult.agent_data;
 
       return {
         status: 'success',

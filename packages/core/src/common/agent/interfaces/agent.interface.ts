@@ -1,17 +1,6 @@
-import { RpcProvider } from 'starknet';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { z as Zod } from 'zod';
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
-
-export interface StarknetTool<P = unknown> {
-  name: string;
-  plugins: string;
-  description: string;
-  schema?: Zod.AnyZodObject;
-  response_format?: string;
-  execute: (agent: any, params: P, plugins_manager?: any) => Promise<unknown>;
-}
 
 export interface ModelConfig {
   model_provider: string;
@@ -202,38 +191,10 @@ export namespace AgentConfig {
     : Input;
 }
 
-export interface StarknetConfig {
-  provider: RpcProvider;
-  accountPublicKey: string;
-  accountPrivateKey: string;
-}
-
 export interface DatabaseCredentials {
   host: string;
   port: number;
   user: string;
   password: string;
   database: string;
-}
-
-// TODO REMOVE WHEN REMOVED PLUGINS
-/**
- * @interface SnakAgentInterface
- * @description Interface for the Starknet agent
- * @property {() => { accountPublicKey: string; accountPrivateKey: string; }} getAccountCredentials - Function to get the account credentials
- * @property {() => DatabaseCredentials} getDatabaseCredentials - Function to get the database credentials
- * @property {() => RpcProvider} getProvider - Function to get the provider
- * @property {() => AgentConfigInput} getAgentConfig - Function to get the agent configuration
- * @property {(database_name: string) => Promise<void>} connectDatabase - Function to connect to a database
- * @property {(database_name: string) => Promise<PostgresAdaptater | undefined>} createDatabase - Function to create a database
- * @property {(name: string) => PostgresAdaptater | undefined} getDatabaseByName - Function to get a database by name
- */
-export interface SnakAgentInterface {
-  getAccountCredentials: () => {
-    accountPublicKey: string;
-    accountPrivateKey: string;
-  };
-  getDatabaseCredentials: () => DatabaseCredentials;
-  getProvider: () => RpcProvider;
-  getAgentConfig: () => AgentConfig.Input;
 }

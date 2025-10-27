@@ -76,9 +76,6 @@ export class AgentValidationService {
         this.validateMCPServers(agent_config.mcp_servers);
       }
 
-      // Validate identifiers (chatId)
-      this.validateIdentifiers(agent_config);
-
       logger.debug(
         `Agent ${isCreation ? 'creation' : 'update'} validation passed successfully`
       );
@@ -554,27 +551,6 @@ export class AgentValidationService {
   }
 
   /**
-   * Validate only the chatId field
-   * @param agent_config - Agent configuration containing chatId
-   * @public
-   */
-  public validateIdentifiers(agent_config: any): void {
-    const promptsIdMaxLength = getGuardValue('agents.prompts_id_max_length');
-
-    if (
-      'chatId' in agent_config &&
-      agent_config.chatId &&
-      typeof agent_config.chatId === 'string'
-    ) {
-      if (agent_config.chatId.length > promptsIdMaxLength) {
-        throw new Error(
-          `Agent chatId too long. Maximum length: ${promptsIdMaxLength}`
-        );
-      }
-    }
-  }
-
-  /**
    * Validate agent creation quotas (global and user limits)
    * @param userId - User ID to validate quotas for
    * @param databaseInterface - Optional database interface for count validations
@@ -772,15 +748,6 @@ export function validateRAG(rag: any): void {
 export function validateMCPServers(mcpServers: Record<string, any>): void {
   const validationService = new AgentValidationService();
   validationService.validateMCPServers(mcpServers);
-}
-
-/**
- * Validate only the chatId field
- * @param agent_config - Agent configuration containing chatId
- */
-export function validateIdentifiers(agent_config: any): void {
-  const validationService = new AgentValidationService();
-  validationService.validateIdentifiers(agent_config);
 }
 
 /**
