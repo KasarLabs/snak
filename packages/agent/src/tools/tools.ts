@@ -5,7 +5,7 @@ import {
 } from '@langchain/core/tools';
 import { logger, AgentConfig, supervisorAgentConfig } from '@snakagent/core';
 import { AnyZodObject } from 'zod';
-import { MCP_CONTROLLER } from '@services/mcp/src/mcp.js';
+import { MCP_CONTROLLER } from '@services/mcp/src/mcp.service.js';
 import { CoreToolRegistry } from '@agents/graphs/tools/core.tools.js';
 import { getSupervisorConfigTools } from '@agents/operators/supervisor/supervisorTools.js';
 

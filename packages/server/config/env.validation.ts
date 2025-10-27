@@ -17,11 +17,8 @@ export const envSchema = z.object({
     .optional()
     .default('config/models/default.models.json'),
 
-  // Provider-specific API Keys (optional)
-  OPENAI_API_KEY: z.string().optional(),
-  ANTHROPIC_API_KEY: z.string().optional(),
-  GEMINI_API_KEY: z.string().optional(),
-  DEEPSEEK_API_KEY: z.string().optional(),
+  // Provider-specific API Keys
+  GEMINI_API_KEY: z.string(),
   // Rag max size configuration
   RAG_CONFIG_PATH: z.string().optional().default('config/rag/default.rag.json'),
 

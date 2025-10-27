@@ -1,12 +1,12 @@
-import { ChatAnthropic } from '@langchain/anthropic';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { ChatOpenAI } from '@langchain/openai';
 import { ModelConfig } from '@snakagent/core';
 import { logger } from 'starknet';
 
+const SUPPORTED_GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'];
+
 /**
- * Initializes model instances based on the loaded configuration.
+ * Initializes Gemini model instances based on the loaded configuration.
  * @returns {BaseChatModel | null} Model instance or null if initialization fails.
  */
 export function initializeModels(model: ModelConfig): BaseChatModel | null {
@@ -17,37 +17,26 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
     if (!model.provider) {
       throw new Error('Model provider is not defined');
     }
-    let modelInstance: BaseChatModel | null = null;
-    const commonConfig = {
-      modelName: model.model_name,
+
+    // Only support Gemini provider
+    if (model.provider.toLowerCase() !== 'gemini') {
+      throw new Error(`Unsupported provider: ${model.provider}. Only 'gemini' is supported.`);
+    }
+
+    // Validate model name
+    if (!SUPPORTED_GEMINI_MODELS.includes(model.model_name)) {
+      throw new Error(
+        `Unsupported Gemini model: ${model.model_name}. Supported models: ${SUPPORTED_GEMINI_MODELS.join(', ')}`
+      );
+    }
+
+    const modelInstance = new ChatGoogleGenerativeAI({
+      model: model.model_name,
       verbose: false,
       temperature: model.temperature,
-    };
-    switch (model.provider.toLowerCase()) {
-      case 'openai':
-        modelInstance = new ChatOpenAI({
-          ...commonConfig,
-          openAIApiKey: process.env.OPENAI_API_KEY,
-        });
-        break;
-      case 'anthropic':
-        modelInstance = new ChatAnthropic({
-          ...commonConfig,
-          anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-        });
-        break;
-      case 'gemini':
-        modelInstance = new ChatGoogleGenerativeAI({
-          model: model.model_name, // Updated to valid Gemini model name
-          verbose: false,
-          temperature: model.temperature,
-          apiKey: process.env.GEMINI_API_KEY,
-        });
-        break;
-      // Add case for 'deepseek' if a Langchain integration exists or becomes available
-      default:
-        throw new Error('No valid model provided');
-    }
+      apiKey: process.env.GEMINI_API_KEY,
+    });
+
     return modelInstance;
   } catch (error) {
     logger.error(

@@ -29,7 +29,7 @@ jest.mock('@snakagent/core', () => ({
   },
 }));
 
-import { MCP_CONTROLLER } from '../mcp.js';
+import { MCP_CONTROLLER } from '../mcp.service.js';
 import { StructuredTool } from '@langchain/core/tools';
 import { MultiServerMCPClient } from 'snak-mcps';
 import { logger, AgentConfig, AgentMode } from '@snakagent/core';
