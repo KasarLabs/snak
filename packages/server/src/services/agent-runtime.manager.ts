@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { getGuardValue, type AgentConfig } from '@snakagent/core';
+import { BaseAgent } from '@snakagent/agents';
 
 const parsePositiveInt = (
   value: string | undefined,
@@ -40,6 +41,7 @@ export interface AgentRuntimeSeed {
   userId: string;
   cfgVersion: number;
   runtime: AgentConfig.Runtime;
+  agent?: BaseAgent;
   rebuild: () => Promise<AgentRuntimeSeed | null>;
   ttlMs?: number;
 }
@@ -49,6 +51,7 @@ interface CacheEntry {
   userId: string;
   cfgVersion: number;
   runtime: AgentConfig.Runtime;
+  agent?: BaseAgent;
   rebuild: () => Promise<AgentRuntimeSeed | null>;
   expiresAt: number;
   refCount: number;
@@ -110,6 +113,7 @@ export class AgentRuntimeManager {
         !this.isExpired(existing, now)
       ) {
         existing.runtime = seed.runtime;
+        existing.agent = seed.agent;
         existing.rebuild = seed.rebuild;
         existing.userId = seed.userId;
         existing.expiresAt = this.computeExpires(now, seed.ttlMs);
@@ -127,6 +131,17 @@ export class AgentRuntimeManager {
    */
   async acquire(agentId: string): Promise<AgentConfig.Runtime | null> {
     return this.withInflight(agentId, async () => this.doAcquire(agentId));
+  }
+
+  /**
+   * Acquire both runtime and agent from cache, incrementing its reference count.
+   */
+  async acquireWithAgent(
+    agentId: string
+  ): Promise<{ runtime: AgentConfig.Runtime; agent?: BaseAgent } | null> {
+    return this.withInflight(agentId, async () =>
+      this.doAcquireWithAgent(agentId)
+    );
   }
 
   private doAcquire(agentId: string): AgentConfig.Runtime | null {
@@ -149,6 +164,30 @@ export class AgentRuntimeManager {
     entry.lastAccess = now;
     this.bump(agentId, entry);
     return entry.runtime;
+  }
+
+  private doAcquireWithAgent(
+    agentId: string
+  ): { runtime: AgentConfig.Runtime; agent?: BaseAgent } | null {
+    const now = Date.now();
+    this.pruneExpired(now);
+
+    const entry = this.cache.get(agentId);
+    if (!entry) {
+      return null;
+    }
+
+    if (this.isExpired(entry, now)) {
+      if (entry.refCount === 0) {
+        this.cache.delete(agentId);
+      }
+      return null;
+    }
+
+    entry.refCount += 1;
+    entry.lastAccess = now;
+    this.bump(agentId, entry);
+    return { runtime: entry.runtime, agent: entry.agent };
   }
 
   /**
@@ -255,6 +294,7 @@ export class AgentRuntimeManager {
       userId: seed.userId,
       cfgVersion: seed.cfgVersion,
       runtime: seed.runtime,
+      agent: seed.agent,
       rebuild: seed.rebuild,
       expiresAt,
       refCount: 0,

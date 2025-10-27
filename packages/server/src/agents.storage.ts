@@ -37,11 +37,6 @@ type CanonicalAgentConfig = NonNullable<
   Awaited<ReturnType<typeof agents.getAgentCfg>>
 >;
 
-// Default agent configuration constants
-
-/**
- * Service responsible for managing agent storage, configuration, and lifecycle
- */
 @Injectable()
 export class AgentStorage implements OnModuleInit {
   private agentSelector: AgentSelector;
@@ -135,7 +130,7 @@ export class AgentStorage implements OnModuleInit {
 
   /**
    * Get a SnakAgent instance by ID
-   * Fetches from Redis and creates a new instance each time
+   * Uses the agent cache to return pre-initialized agents with compiled graphs
    * @param {string} id - The agent ID
    * @param {string} userId - User ID to verify ownership (required)
    * @returns {SnakAgent | undefined} The agent instance or undefined if not found or not owned by user
@@ -147,22 +142,25 @@ export class AgentStorage implements OnModuleInit {
     if (!this.initialized) {
       await this.initialize();
     }
+
+    logger.debug(`Getting agent ${id} for user ${userId}`);
+
+    const cached = await this.runtimeManager.acquireWithAgent(id);
+    if (cached && cached.agent && cached.runtime.user_id === userId) {
+      logger.debug(`Using cached agent ${id} for user ${userId}`);
+      return cached.agent;
+    }
+
+    logger.debug(`Creating agent ${id} for user ${userId} (not in cache)`);
+
+    // Get agent config from Redis or PostgreSQL
+    let agentConfig: AgentConfig.OutputWithId | null = null;
+
     try {
-      const agentConfig = await redisAgents.getAgentByPair(id, userId);
-
-      if (!agentConfig) {
-        logger.debug(`Agent ${id} not found in Redis for user ${userId}`);
-        return undefined;
-      }
-
-      // Create SnakAgent from config
-      const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
-
-      logger.debug(`Agent ${id} created for user ${userId}`);
-      return snakAgent;
+      agentConfig = await redisAgents.getAgentByPair(id, userId);
     } catch (error) {
-      logger.error(`Error getting agent instance from Redis: ${error}`);
-      // Fallback to PostgreSQL as source of truth
+      logger.error(`Error getting agent from Redis: ${error}`);
+      // Fallback to PostgreSQL
       try {
         const result = await agents.selectAgents('id = $1 AND user_id = $2', [
           id,
@@ -174,23 +172,54 @@ export class AgentStorage implements OnModuleInit {
             updated_at,
             avatar_image,
             avatar_mime_type,
-            ...agentConfig
+            ...config
           } = result[0];
-          // Create SnakAgent from config
-          const snakAgent = await this.createSnakAgentFromConfig(agentConfig);
-          logger.debug(
-            `Agent ${id} created from PostgreSQL fallback for user ${userId}`
-          );
-          return snakAgent;
+          agentConfig = config;
         }
-        return undefined;
       } catch (pgError) {
-        logger.error(`Fallback to PostgreSQL also failed: ${pgError}`);
-        throw new Error(
-          `Failed to get agent instance from PostgreSQL: ${pgError}`
-        );
+        logger.error(`Error getting agent from PostgreSQL: ${pgError}`);
       }
     }
+
+    if (!agentConfig) {
+      logger.debug(`Agent ${id} not found for user ${userId}`);
+      throw new Error(`Agent ${id} not found or access denied`);
+    }
+
+    const agent = await this.createSnakAgentFromConfig(agentConfig);
+
+    try {
+      const seed = await this.buildRuntimeSeed(agentConfig.id, agent);
+      if (seed) {
+        await this.runtimeManager.shadowSeed(seed);
+      }
+    } catch (error) {
+      logger.warn(
+        `Failed to update cache with agent ${agentConfig.id}: ${error}`
+      );
+    }
+
+    return agent;
+  }
+
+  private async createAgentFromRuntime(
+    runtime: AgentConfig.Runtime
+  ): Promise<BaseAgent> {
+    const starknetConfig: StarknetConfig = {
+      provider: this.config.starknet.provider,
+      accountPrivateKey: this.config.starknet.privateKey,
+      accountPublicKey: this.config.starknet.publicKey,
+    };
+
+    if (this.supervisorService.isSupervisorConfig(runtime)) {
+      const supervisorAgent = new SupervisorAgent(runtime);
+      await supervisorAgent.init();
+      return supervisorAgent;
+    }
+
+    const snakAgent = new SnakAgent(starknetConfig, runtime);
+    await snakAgent.init();
+    return snakAgent;
   }
 
   public getAgentSelector(): AgentSelector {
@@ -584,24 +613,28 @@ export class AgentStorage implements OnModuleInit {
   }
 
   private async buildRuntimeSeed(
-    agentId: string
+    agentId: string,
+    existingAgent?: BaseAgent
   ): Promise<AgentRuntimeSeed | null> {
     const canonical = await agents.getAgentCfg(agentId);
     if (!canonical) {
       return null;
     }
-    return this.buildRuntimeSeedFromCanonical(canonical);
+    return this.buildRuntimeSeedFromCanonical(canonical, existingAgent);
   }
 
   private async buildRuntimeSeedFromCanonical(
-    canonical: CanonicalAgentConfig
+    canonical: CanonicalAgentConfig,
+    existingAgent?: BaseAgent
   ): Promise<AgentRuntimeSeed> {
     const runtime = await this.instantiateRuntimeFromCanonical(canonical);
+    const agent = existingAgent ?? (await this.createAgentFromRuntime(runtime));
     return {
       agentId: canonical.id,
       userId: canonical.user_id,
       cfgVersion: canonical.cfg_version,
       runtime,
+      agent,
       rebuild: this.createRuntimeRebuildFn(canonical.id),
     };
   }
