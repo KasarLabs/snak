@@ -38,9 +38,13 @@ const modelGuardsValues: GuardsConfig['agents']['graph']['model'] =
 export const ModelConfigSchema = z.object({
   provider: z
     .string()
-    .refine((val) => val.toLowerCase() === modelGuardsValues.allowed_provider.toLowerCase(), {
-      message: `Provider must be '${modelGuardsValues.allowed_provider}'`,
-    })
+    .refine(
+      (val) =>
+        val.toLowerCase() === modelGuardsValues.allowed_provider.toLowerCase(),
+      {
+        message: `Provider must be '${modelGuardsValues.allowed_provider}'`,
+      }
+    )
     .optional()
     .describe('Model provider'),
   model_name: z

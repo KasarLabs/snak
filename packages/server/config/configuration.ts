@@ -20,9 +20,13 @@ export class ConfigurationService {
         'AI_MODELS_CONFIG_PATH'
       ),
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
-      DEFAULT_MODEL_PROVIDER: this.configService.get<string>('DEFAULT_MODEL_PROVIDER'),
+      DEFAULT_MODEL_PROVIDER: this.configService.get<string>(
+        'DEFAULT_MODEL_PROVIDER'
+      ),
       DEFAULT_MODEL_NAME: this.configService.get<string>('DEFAULT_MODEL_NAME'),
-      DEFAULT_TEMPERATURE: this.configService.get<string>('DEFAULT_TEMPERATURE'),
+      DEFAULT_TEMPERATURE: this.configService.get<string>(
+        'DEFAULT_TEMPERATURE'
+      ),
       GUARDS_CONFIG_PATH: this.configService.get<string>('GUARDS_CONFIG_PATH'),
       REDIS_HOST: this.configService.get<string>('REDIS_HOST'),
       REDIS_PORT: this.configService.get<string>('REDIS_PORT'),
@@ -45,12 +49,15 @@ export class ConfigurationService {
         }
       });
 
-      const formattedError = errorMessages.length > 0
-        ? `\n\nMissing or invalid environment variables:\n${errorMessages.join('\n')}\n\nPlease check your .env file and ensure all required variables are set.\n`
-        : JSON.stringify(errors, null, 2);
+      const formattedError =
+        errorMessages.length > 0
+          ? `\n\nMissing or invalid environment variables:\n${errorMessages.join('\n')}\n\nPlease check your .env file and ensure all required variables are set.\n`
+          : JSON.stringify(errors, null, 2);
 
       this.logger.error(formattedError);
-      throw new Error('Invalid environment variables. Check logs above for details.');
+      throw new Error(
+        'Invalid environment variables. Check logs above for details.'
+      );
     }
 
     this.config = result.data;

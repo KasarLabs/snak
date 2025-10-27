@@ -267,7 +267,9 @@ export class AgentValidationService {
    */
   private validateModelConfig(model: any): void {
     // Load guard values once for performance
-    const allowedProvider = getGuardValue('agents.graph.model.allowed_provider');
+    const allowedProvider = getGuardValue(
+      'agents.graph.model.allowed_provider'
+    );
     const allowedModels = getGuardValue('agents.graph.model.allowed_models');
     const maxTemperature = getGuardValue('agents.graph.model.max_temperature');
     const maxTokens = getGuardValue('agents.graph.model.max_tokens');
