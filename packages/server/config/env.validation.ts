@@ -15,6 +15,7 @@ export const envSchema = z.object({
 
   // Provider-specific API Keys
   GEMINI_API_KEY: z.string(),
+  SMITHERY_API_KEY: z.string(),
 
   // Default model configuration
   DEFAULT_MODEL_PROVIDER: z.string(),

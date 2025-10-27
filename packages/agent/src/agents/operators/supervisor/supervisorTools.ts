@@ -11,6 +11,7 @@ import {
   updateMcpServerTool,
   messageAskUserTool,
 } from './tools/index.js';
+import { searchMcpServerTool } from './tools/searchMcpServerTools.js';
 
 /**
  * Shared configuration tools reserved for supervisor agents.
@@ -50,6 +51,7 @@ export function getMcpServerHelperTools(agentConfig: AgentConfig.Runtime) {
     addMcpServerTool(agentConfig),
     removeMcpServerTool(agentConfig),
     updateMcpServerTool(agentConfig),
+    searchMcpServerTool(),
   ];
 }
 
