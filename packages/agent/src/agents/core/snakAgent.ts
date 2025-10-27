@@ -1,5 +1,4 @@
 import { BaseAgent } from './baseAgent.js';
-import { RpcProvider } from 'starknet';
 import { logger, AgentConfig } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentType } from '../../shared/enums/agent.enum.js';
@@ -116,7 +115,7 @@ export class SnakAgent extends BaseAgent {
     }
     return this.ragAgent;
   }
-  
+
   public async dispose(): Promise<void> {
     this.stop();
     if (this.pgCheckpointer) {

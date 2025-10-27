@@ -1,8 +1,6 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { ModelConfig } from '@snakagent/core';
-import { logger } from 'starknet';
-
+import { ModelConfig, logger } from '@snakagent/core';
 const SUPPORTED_GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'];
 
 /**
@@ -20,7 +18,9 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
 
     // Only support Gemini provider
     if (model.provider.toLowerCase() !== 'gemini') {
-      throw new Error(`Unsupported provider: ${model.provider}. Only 'gemini' is supported.`);
+      throw new Error(
+        `Unsupported provider: ${model.provider}. Only 'gemini' is supported.`
+      );
     }
 
     // Validate model name

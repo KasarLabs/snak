@@ -12,7 +12,6 @@ import {
   AgentExecutionError,
 } from '../../common/errors/agent.errors.js';
 import { ConfigurationService } from '../../config/configuration.js';
-import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import {
   BaseAgent,
   ChunkOutput,
@@ -132,14 +131,6 @@ export class AgentService {
       if (error instanceof AgentValidationError) {
         throw error;
       }
-
-      if (error.message?.includes('transaction')) {
-        throw new StarknetTransactionError('Failed to execute transaction', {
-          originalError: error.message,
-          cause: error,
-        });
-      }
-
       throw new AgentExecutionError('Failed to process agent request', {
         originalError: error.message,
         cause: error,
@@ -189,13 +180,6 @@ export class AgentService {
 
       if (error instanceof AgentValidationError) {
         throw error;
-      }
-
-      if (error.message?.includes('transaction')) {
-        throw new StarknetTransactionError('Failed to execute transaction', {
-          originalError: error.message,
-          cause: error,
-        });
       }
 
       throw new AgentExecutionError('Failed to process agent request', {
