@@ -1,4 +1,4 @@
-import { Id } from "@snakagent/core";
+import { Id } from '@snakagent/core';
 
 export interface ToolArgs {
   [key: string]: string | number | boolean;

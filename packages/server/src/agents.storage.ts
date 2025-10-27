@@ -182,7 +182,7 @@ export class AgentStorage implements OnModuleInit {
       }
     }
   }
-  
+
   public async getModelFromUser(userId: string): Promise<ModelConfig> {
     if (!userId || userId.length === 0) {
       throw new Error('User ID is required to fetch model configuration');
