@@ -274,22 +274,24 @@ export class AgentValidationService {
     const maxTemperature = getGuardValue('agents.graph.model.max_temperature');
     const maxTokens = getGuardValue('agents.graph.model.max_tokens');
 
-    // Validate provider
-    if (model.provider) {
-      if (model.provider.toLowerCase() !== allowedProvider.toLowerCase()) {
-        throw new Error(
-          `Invalid model provider. Only '${allowedProvider}' is supported.`
-        );
-      }
+    // Validate provider - REQUIRED
+    if (!model.model_provider) {
+      throw new Error('Model provider is required');
+    }
+    if (model.model_provider.toLowerCase() !== allowedProvider.toLowerCase()) {
+      throw new Error(
+        `Invalid model provider. Only '${allowedProvider}' is supported.`
+      );
     }
 
-    // Validate model_name
-    if (model.model_name) {
-      if (!allowedModels.includes(model.model_name)) {
-        throw new Error(
-          `Invalid model name. Supported models: ${allowedModels.join(', ')}`
-        );
-      }
+    // Validate model_name - REQUIRED
+    if (!model.model_name) {
+      throw new Error('Model name is required');
+    }
+    if (!allowedModels.includes(model.model_name)) {
+      throw new Error(
+        `Invalid model name. Supported models: ${allowedModels.join(', ')}`
+      );
     }
 
     // Validate temperature

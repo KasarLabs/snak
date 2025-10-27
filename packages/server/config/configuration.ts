@@ -20,6 +20,7 @@ export class ConfigurationService {
         'AI_MODELS_CONFIG_PATH'
       ),
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
+      SMITHERY_API_KEY: this.configService.get<string>('SMITHERY_API_KEY'),
       DEFAULT_MODEL_PROVIDER: this.configService.get<string>(
         'DEFAULT_MODEL_PROVIDER'
       ),
@@ -122,6 +123,10 @@ export class ConfigurationService {
 
   get geminiApiKey(): string {
     return this.config.GEMINI_API_KEY;
+  }
+
+  get smitheryApiKey(): string {
+    return this.config.SMITHERY_API_KEY;
   }
 
   get defaultModel() {
