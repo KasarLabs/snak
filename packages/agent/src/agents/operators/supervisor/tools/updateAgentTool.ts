@@ -49,7 +49,7 @@ export function updateAgentTool(
   return new DynamicStructuredTool({
     name: 'update_agent',
     description:
-      'Update/modify/change/rename specific properties of an existing agent configuration. Use when user wants to modify, change, update, edit, or rename any agent property like name, description, group, etc.',
+      'Update/modify/change/rename specific properties of an existing agent configuration. Use when user wants to modify, change, update, edit, or rename any agent property like name, description, group, etc. Note: MCP servers cannot be updated with this tool - use add_mcp_server, update_mcp_server, or remove_mcp_server tools instead.',
     schema: UpdateAgentSchema,
     func: async (input) => {
       try {
