@@ -205,6 +205,7 @@ export class AgentRuntimeManager {
 
     if (entry.refCount === 0 && this.isExpired(entry, Date.now())) {
       this.cache.delete(agentId);
+      void this.safeDispose(entry.agent);
     }
   }
 
@@ -289,20 +290,36 @@ export class AgentRuntimeManager {
     now = Date.now()
   ): Promise<void> {
     const expiresAt = this.computeExpires(now, seed.ttlMs);
-    const entry: CacheEntry = {
-      agentId: seed.agentId,
-      userId: seed.userId,
-      cfgVersion: seed.cfgVersion,
-      runtime: seed.runtime,
-      agent: seed.agent,
-      rebuild: seed.rebuild,
-      expiresAt,
-      refCount: 0,
-      lastAccess: now,
-    };
-
-    this.bump(seed.agentId, entry);
-    this.trimCache();
+    const existing = this.cache.get(seed.agentId);
+    if (existing) {
+      const oldAgent = existing.agent;
+      const wasPinned = existing.refCount > 0;
+      existing.userId = seed.userId;
+      existing.cfgVersion = seed.cfgVersion;
+      existing.runtime = seed.runtime;
+      existing.agent = seed.agent;
+      existing.rebuild = seed.rebuild;
+      existing.expiresAt = expiresAt;
+      existing.lastAccess = now;
+      this.bump(seed.agentId, existing);
+      if (oldAgent && !wasPinned) {
+        void this.safeDispose(oldAgent);
+      }
+    } else {
+      const entry: CacheEntry = {
+        agentId: seed.agentId,
+        userId: seed.userId,
+        cfgVersion: seed.cfgVersion,
+        runtime: seed.runtime,
+        agent: seed.agent,
+        rebuild: seed.rebuild,
+        expiresAt,
+        refCount: 0,
+        lastAccess: now,
+      };
+      this.bump(seed.agentId, entry);
+      this.trimCache();
+    }
   }
 
   private bump(agentId: string, entry: CacheEntry): void {
@@ -314,6 +331,7 @@ export class AgentRuntimeManager {
     for (const [agentId, entry] of this.cache) {
       if (entry.refCount === 0 && this.isExpired(entry, now)) {
         this.cache.delete(agentId);
+        void this.safeDispose(entry.agent);
       }
     }
   }
@@ -334,7 +352,11 @@ export class AgentRuntimeManager {
       if (this.cache.size <= this.maxEntries) {
         break;
       }
+      const removed = this.cache.get(agentId);
       this.cache.delete(agentId);
+      if (removed?.agent) {
+        void this.safeDispose(removed.agent);
+      }
     }
 
     if (this.cache.size > this.maxEntries) {
@@ -354,6 +376,16 @@ export class AgentRuntimeManager {
       return Number.MAX_SAFE_INTEGER;
     }
     return now + ttlMs;
+  }
+
+  private async safeDispose(agent?: BaseAgent): Promise<void> {
+    try {
+      if (agent && typeof agent.dispose === 'function') {
+        await agent.dispose();
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to dispose agent`, { error });
+    }
   }
 }
 

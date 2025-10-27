@@ -148,6 +148,7 @@ export class AgentStorage implements OnModuleInit {
     const cached = await this.runtimeManager.acquireWithAgent(id);
     if (cached && cached.agent && cached.runtime.user_id === userId) {
       logger.debug(`Using cached agent ${id} for user ${userId}`);
+      this.runtimeManager.release(id);
       return cached.agent;
     }
 
@@ -547,34 +548,24 @@ export class AgentStorage implements OnModuleInit {
     agentConfigOutputWithId: AgentConfig.OutputWithId
   ): Promise<AgentConfig.Runtime | undefined> {
     try {
-      const seed = await this.buildRuntimeSeed(agentConfigOutputWithId.id);
-      if (seed) {
-        if (seed.userId !== agentConfigOutputWithId.user_id) {
+      const canonical = await agents.getAgentCfg(agentConfigOutputWithId.id);
+      if (canonical) {
+        if (canonical.user_id !== agentConfigOutputWithId.user_id) {
           throw new Error(
-            `Agent ${agentConfigOutputWithId.id} ownership mismatch: Redis has user ${agentConfigOutputWithId.user_id} but Postgres has ${seed.userId}`
+            `Agent ${agentConfigOutputWithId.id} ownership mismatch: Redis has user ${agentConfigOutputWithId.user_id} but Postgres has ${canonical.user_id}`
           );
         }
-        try {
-          await this.runtimeManager.shadowSeed(seed);
-        } catch (error) {
-          logger.warn(
-            `Failed to register runtime seed with AgentRuntimeManager for agent ${seed.agentId}`,
-            { error }
-          );
-        }
-        return seed.runtime;
+        return await this.instantiateRuntimeFromCanonical(canonical);
       }
-
       logger.warn(
         `Failed to resolve canonical agent configuration for ${agentConfigOutputWithId.id}; falling back to legacy runtime creation`
       );
     } catch (error) {
       logger.warn(
-        `Agent runtime seed build failed for ${agentConfigOutputWithId.id}, falling back to legacy runtime creation`,
+        `Canonical runtime resolution failed for ${agentConfigOutputWithId.id}, falling back to legacy runtime creation`,
         { error }
       );
     }
-
     return this.buildRuntimeLegacy(agentConfigOutputWithId);
   }
 
@@ -628,7 +619,7 @@ export class AgentStorage implements OnModuleInit {
     existingAgent?: BaseAgent
   ): Promise<AgentRuntimeSeed> {
     const runtime = await this.instantiateRuntimeFromCanonical(canonical);
-    const agent = existingAgent ?? (await this.createAgentFromRuntime(runtime));
+    const agent = existingAgent;
     return {
       agentId: canonical.id,
       userId: canonical.user_id,
