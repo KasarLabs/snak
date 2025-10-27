@@ -38,14 +38,16 @@ const modelGuardsValues: GuardsConfig['agents']['graph']['model'] =
 export const ModelConfigSchema = z.object({
   provider: z
     .string()
-    .min(modelGuardsValues.provider_min_length)
-    .max(modelGuardsValues.provider_max_length)
+    .refine((val) => val.toLowerCase() === modelGuardsValues.allowed_provider.toLowerCase(), {
+      message: `Provider must be '${modelGuardsValues.allowed_provider}'`,
+    })
     .optional()
     .describe('Model provider'),
   model_name: z
     .string()
-    .min(modelGuardsValues.model_name_min_length)
-    .max(modelGuardsValues.model_name_max_length)
+    .refine((val) => modelGuardsValues.allowed_models.includes(val), {
+      message: `Model must be one of: ${modelGuardsValues.allowed_models.join(', ')}`,
+    })
     .optional()
     .describe('Model name'),
   temperature: z

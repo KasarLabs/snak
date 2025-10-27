@@ -127,10 +127,8 @@ const McpServersConfigSchema = z.object({
 
 // Agent graph model configuration schema
 const AgentGraphModelConfigSchema = z.object({
-  provider_max_length: positiveInteger,
-  provider_min_length: positiveInteger,
-  model_name_max_length: positiveInteger,
-  model_name_min_length: positiveInteger,
+  allowed_provider: z.string(),
+  allowed_models: z.array(z.string()),
   max_temperature: z.number().min(0).max(1),
   max_tokens: positiveInteger,
 });

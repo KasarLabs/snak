@@ -93,10 +93,8 @@
       "max_execution_timeout_ms": 500000,
       "max_token_usage": 200000,
       "model": {
-        "provider_max_length": 100,
-        "provider_min_length": 3,
-        "model_name_max_length": 100,
-        "model_name_min_length": 3,
+        "allowed_provider": "gemini",
+        "allowed_models": ["gemini-2.5-flash", "gemini-2.5-pro"],
         "max_temperature": 1,
         "max_tokens": 8192
       }

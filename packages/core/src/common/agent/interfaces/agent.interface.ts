@@ -194,12 +194,6 @@ export namespace AgentConfig {
     : Input;
 }
 
-export interface StarknetConfig {
-  provider: RpcProvider;
-  accountPublicKey: string;
-  accountPrivateKey: string;
-}
-
 export interface DatabaseCredentials {
   host: string;
   port: number;

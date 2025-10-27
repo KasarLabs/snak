@@ -1,6 +1,6 @@
 import { BaseAgent } from './baseAgent.js';
 import { RpcProvider } from 'starknet';
-import { logger, AgentConfig, StarknetConfig } from '@snakagent/core';
+import { logger, AgentConfig } from '@snakagent/core';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { AgentType } from '../../shared/enums/agent.enum.js';
 import { createGraph } from '../graphs/core-graph/agent.graph.js';
@@ -32,14 +32,9 @@ import {
  * Supports multiple execution modes: interactive, autonomous, and hybrid
  */
 export class SnakAgent extends BaseAgent {
-  private readonly provider: RpcProvider;
   private ragAgent: RagAgent | null = null;
-  constructor(
-    starknet_config: StarknetConfig,
-    agent_config: AgentConfig.Runtime
-  ) {
+  constructor(agent_config: AgentConfig.Runtime) {
     super('snak', AgentType.SNAK, agent_config);
-    this.provider = starknet_config.provider;
   }
   /**
    * Initialize the SnakAgent and create the appropriate executor
@@ -121,15 +116,7 @@ export class SnakAgent extends BaseAgent {
     }
     return this.ragAgent;
   }
-
-  /**
-   * Get Starknet RPC provider
-   * @returns The RpcProvider instance
-   */
-  public getProvider(): RpcProvider {
-    return this.provider;
-  }
-
+  
   public async dispose(): Promise<void> {
     this.stop();
     if (this.pgCheckpointer) {

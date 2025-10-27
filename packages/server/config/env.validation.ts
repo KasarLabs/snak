@@ -7,10 +7,6 @@ export const envSchema = z.object({
   SERVER_PORT: z.coerce.number().default(3000),
   SERVER_API_KEY: z.string(),
 
-  STARKNET_PRIVATE_KEY: z.string(),
-  STARKNET_PUBLIC_ADDRESS: z.string(),
-  STARKNET_RPC_URL: z.string().url(),
-
   AI_MODEL_LEVEL: z.string().optional().default('smart'),
   AI_MODELS_CONFIG_PATH: z
     .string()
@@ -19,6 +15,12 @@ export const envSchema = z.object({
 
   // Provider-specific API Keys
   GEMINI_API_KEY: z.string(),
+
+  // Default model configuration
+  DEFAULT_MODEL_PROVIDER: z.string(),
+  DEFAULT_MODEL_NAME: z.string(),
+  DEFAULT_TEMPERATURE: z.coerce.number().min(0).max(1),
+
   // Rag max size configuration
   RAG_CONFIG_PATH: z.string().optional().default('config/rag/default.rag.json'),
 

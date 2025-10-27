@@ -7,7 +7,6 @@ import { RedisClient } from '@snakagent/database/redis';
 import {
   AgentConfig,
   ModelConfig,
-  StarknetConfig,
   AgentPromptsInitialized,
   DEFAULT_AGENT_MODEL,
   AgentValidationService,
@@ -549,11 +548,6 @@ export class AgentStorage implements OnModuleInit {
     agentConfig: AgentConfig.OutputWithId
   ): Promise<BaseAgent> {
     try {
-      const starknetConfig: StarknetConfig = {
-        provider: this.config.starknet.provider,
-        accountPrivateKey: this.config.starknet.privateKey,
-        accountPublicKey: this.config.starknet.publicKey,
-      };
       const AgentConfigRuntime =
         await this.createAgentConfigRuntimeFromOutputWithId(agentConfig);
       if (!AgentConfigRuntime) {
@@ -566,7 +560,7 @@ export class AgentStorage implements OnModuleInit {
         await supervisorAgent.init();
         return supervisorAgent;
       }
-      const snakAgent = new SnakAgent(starknetConfig, AgentConfigRuntime);
+      const snakAgent = new SnakAgent(AgentConfigRuntime);
       await snakAgent.init();
 
       return snakAgent;
