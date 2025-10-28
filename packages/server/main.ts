@@ -1,5 +1,5 @@
 // CRITICAL: reflect-metadata must be imported first for class-transformer decorators
-import 'pnpm-metadata';
+import 'reflect-metadata';
 
 // CRITICAL: Initialize Guards BEFORE any other imports that might use getGuardValue
 import './init-guards.js';
