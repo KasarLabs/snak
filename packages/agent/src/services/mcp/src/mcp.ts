@@ -61,6 +61,7 @@ export class MCP_CONTROLLER {
     try {
       const tools = await this.client.getTools();
       this.tools = tools;
+      console.log(tools);
       logger.info(`Parsed ${tools.length} tools from MCP servers`);
     } catch (error) {
       throw new Error(`Error getting tools: ${error}`);
@@ -78,7 +79,7 @@ export class MCP_CONTROLLER {
   public initializeConnections = async () => {
     try {
       await this.client.initializeConnections();
-      this.parseTools();
+      await this.parseTools();
       logger.info(`MCP connections initialized successfully`);
     } catch (error) {
       throw new Error(`Error initializing connections: ${error}`);

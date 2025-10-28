@@ -148,6 +148,7 @@ export class Graph {
       // Initialize database
       await initializeDatabase(this.snakAgent.getDatabaseCredentials());
       this.toolsList = await initializeToolsList(this.agentConfig);
+      console.log(`Tools list length: ${this.toolsList.length}`);
       // Initialize RAG agent if enabled
       if (this.agentConfig.rag?.enabled !== false) {
         await this.initializeRagAgent();
@@ -402,6 +403,7 @@ export class Graph {
     typeof GraphState.State,
     typeof GraphConfigurableAnnotation.State
   > {
+    console.log(`Tools list length: ${this.toolsList.length}`);
     const memory = new MemoryGraph(
       this.agentConfig.graph.model,
       this.agentConfig.memory

@@ -114,6 +114,7 @@ export class AgentExecutorGraph {
       current_directive: state.tasks[state.tasks.length - 1].task?.directive,
       success_criteria: state.tasks[state.tasks.length - 1].task?.success_check,
     });
+    console.log(this.toolsList.length);
     const modelBind = this.model.bindTools!(this.toolsList);
 
     const result = modelBind.invoke(formattedPrompt);
