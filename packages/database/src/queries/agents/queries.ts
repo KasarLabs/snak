@@ -2,6 +2,7 @@ import {
   AgentConfig,
   AgentProfile,
   McpServerConfig,
+  ModelConfig,
   supervisorAgentConfig,
 } from '@snakagent/core';
 import { Postgres } from '../../database.js';
@@ -14,17 +15,6 @@ export namespace agents {
     id: string;
     avatar_mime_type: string;
   }
-
-  /**
-   * Model configuration data
-   */
-  export interface ModelConfig {
-    provider: string;
-    model_name: string;
-    temperature: number;
-    max_tokens: number;
-  }
-
   /**
    * Prompts data
    */
