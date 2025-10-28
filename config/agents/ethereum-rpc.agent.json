@@ -45,7 +45,7 @@
       "execution_timeout_ms": 300000,
       "max_token_usage": 100000,
       "model": {
-        "provider": "google-genai",
+        "provider": "gemini",
         "model_name": "gemini-2.5-flash",
         "temperature": 0.7,
         "max_tokens": 4096
