@@ -7,11 +7,6 @@ export const CreateAgentSchema = z
     profile: AgentProfileSchema.describe(
       'Agent profile configuration (required)'
     ),
-    prompts_id: z
-      .string()
-      .uuid()
-      .optional()
-      .describe('Existing prompts configuration identifier (optional)'),
   })
   .strict();
 

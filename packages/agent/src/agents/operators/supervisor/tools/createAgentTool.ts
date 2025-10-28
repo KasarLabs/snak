@@ -104,10 +104,8 @@ export function createAgentTool(
           notes.push(nameNote);
         }
 
-        const { id: promptId, created: promptsCreated } = await ensurePromptsId(
-          userId,
-          input.prompts_id
-        );
+        const { id: promptId, created: promptsCreated } =
+          await ensurePromptsId(userId);
         if (promptsCreated) {
           notes.push('Default prompts initialized for the user.');
         }
@@ -175,11 +173,6 @@ function buildAgentConfigFromInput(input: CreateAgentInput): AgentConfig.Input {
       contexts: input.profile.contexts || [],
     },
   };
-
-  // Include prompts_id if provided
-  if (input.prompts_id) {
-    partialConfig.prompts_id = input.prompts_id;
-  }
 
   // Apply normalization using the centralized function - it handles all defaults and validation
   const { normalizedConfig, appliedDefaults } =
