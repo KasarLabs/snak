@@ -93,7 +93,7 @@ export class AgentDeletesRequestDTO {
 
 export class AgentAddRequestDTO {
   @IsNotEmpty()
-  agent: AgentConfig.Input;
+  agent: AgentConfig.InputWithPartialConfig;
 }
 
 export class AgentAvatarResponseDTO {

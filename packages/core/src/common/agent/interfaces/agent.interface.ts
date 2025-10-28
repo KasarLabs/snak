@@ -148,6 +148,17 @@ export namespace AgentConfig {
   }
 
   /**
+   * Input configuration with partial memory, mcp_servers and rag
+   * Useful for updates where these configurations are optional
+   */
+  export interface InputWithPartialConfig
+    extends Omit<Input, 'memory' | 'mcp_servers' | 'rag'> {
+    memory?: Partial<MemoryConfig>;
+    mcp_servers?: Record<string, any>;
+    rag?: Partial<RAGConfig>;
+  }
+
+  /**
    * Input configuration with optional parameters for updates
    */
   export interface InputWithOptionalParam extends Partial<Input> {

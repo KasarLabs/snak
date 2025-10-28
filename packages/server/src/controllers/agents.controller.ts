@@ -45,6 +45,7 @@ import {
 } from '@snakagent/database/queries';
 
 import { supervisorAgentConfig } from '@snakagent/core';
+import { initializeAgentConfigIfMissingParams } from '../utils/agents.utils.js';
 
 export interface AgentAvatarResponseDTO {
   id: string;
@@ -355,11 +356,15 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     logger.info('init_agent called');
     const userId = ControllerHelpers.getUserId(req);
-
-    this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
+    const agentConfigurationNormalized = initializeAgentConfigIfMissingParams(
+      userRequest.agent
+    );
+    this.supervisorService.validateNotSupervisorAgent(
+      agentConfigurationNormalized
+    );
 
     const newAgentConfig = await this.agentFactory.addAgent(
-      userRequest.agent,
+      agentConfigurationNormalized,
       userId
     );
 
