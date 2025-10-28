@@ -11,6 +11,7 @@ import { QueueMetrics } from './types/index.js';
 import { logger } from '@snakagent/core';
 import { RedisCacheService } from './services/cache/redis-cache.service.js';
 import { RedisMutexService } from './services/mutex/redis-mutex.service.js';
+import { AgentCfgOutboxWorker } from './workers/agent-cfg-outbox.worker.js';
 
 export class WorkerManager {
   private queueManager: QueueManager;
@@ -18,6 +19,7 @@ export class WorkerManager {
   private jobsMetadataService: JobsMetadataService;
   private isRunning: boolean = false;
   private isShuttingDown: boolean = false;
+  private agentCfgOutboxWorker: AgentCfgOutboxWorker;
 
   constructor(
     redisConfig?: {
@@ -69,6 +71,7 @@ export class WorkerManager {
       cacheService || new RedisCacheService(),
       this.jobsMetadataService
     );
+    this.agentCfgOutboxWorker = new AgentCfgOutboxWorker();
   }
 
   async start(): Promise<void> {
@@ -89,6 +92,9 @@ export class WorkerManager {
       await this.jobProcessor.forceRestartProcessing();
       logger.info('Job processors started');
 
+      await this.agentCfgOutboxWorker.start();
+      logger.info('Agent config outbox worker started');
+
       this.isRunning = true;
       logger.info('Worker manager started successfully');
 
@@ -99,6 +105,11 @@ export class WorkerManager {
         await this.jobProcessor.stopProcessing();
       } catch (e) {
         logger.warn('Cleanup: jobProcessor.stopProcessing failed', e);
+      }
+      try {
+        await this.agentCfgOutboxWorker.stop();
+      } catch (e) {
+        logger.warn('Cleanup: agentCfgOutboxWorker.stop failed', e);
       }
       try {
         await this.queueManager.close();
@@ -121,6 +132,9 @@ export class WorkerManager {
 
       await this.jobProcessor.stopProcessing();
       logger.info('Job processors stopped');
+
+      await this.agentCfgOutboxWorker.stop();
+      logger.info('Agent config outbox worker stopped');
 
       await this.queueManager.close();
       logger.info('Queue manager closed');

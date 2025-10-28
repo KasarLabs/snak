@@ -39,12 +39,7 @@ import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
 import { Postgres } from '@snakagent/database';
 import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
-import {
-  notify,
-  message,
-  agents,
-  redisAgents,
-} from '@snakagent/database/queries';
+import { notify, message, agents } from '@snakagent/database/queries';
 
 import { supervisorAgentConfig } from '@snakagent/core';
 
@@ -131,14 +126,8 @@ export class AgentsController {
       throw new BadRequestException('Agent not found');
     }
 
-    try {
-      await redisAgents.updateAgent(updatedAgent);
-    } catch (err) {
-      logger.warn(
-        `Redis sync failed for agent ${updatedAgent.id}: ${err instanceof Error ? err.message : String(err)}`
-      );
-      // Continue: PostgreSQL is the source of truth
-    }
+    // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
+    // No direct Redis write needed - the outbox worker will handle synchronization
 
     return ResponseFormatter.success({
       id: updatedAgent.id,

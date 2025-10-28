@@ -24,7 +24,7 @@ import {
   SnakAgent,
   UserRequest,
 } from '@snakagent/agents';
-import { redisAgents, agents } from '@snakagent/database/queries';
+import { agents, redisAgents } from '@snakagent/database/queries';
 import { message } from '@snakagent/database/queries';
 
 @Injectable()
@@ -32,24 +32,6 @@ export class AgentService implements IAgentService {
   private readonly logger = new Logger(AgentService.name);
 
   constructor(private readonly config: ConfigurationService) {}
-
-  async syncAgentToRedis(agentId: string, userId: string): Promise<void> {
-    try {
-      const agentsList = await agents.selectAgents('id = $1 AND user_id = $2', [
-        agentId,
-        userId,
-      ]);
-      if (agentsList.length === 0) return;
-
-      const agent = agentsList[0];
-      await redisAgents.updateAgent(agent);
-      this.logger.debug(`Synced agent ${agentId} to Redis`);
-    } catch (err: any) {
-      this.logger.warn(
-        `Redis sync skipped for agent ${agentId}: ${err.message}`
-      );
-    }
-  }
 
   async handleUserRequest(
     agent: BaseAgent,
