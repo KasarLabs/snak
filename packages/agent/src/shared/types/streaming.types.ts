@@ -20,6 +20,7 @@ export interface ChunkOutputMetadata {
 
 export interface ChunkOutput {
   event: string;
+  agent_id: string;
   run_id: string;
   thread_id: string;
   checkpoint_id: string;

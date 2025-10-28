@@ -35,7 +35,8 @@ export class MessageFromAgentIdDTO {
 
   @IsNotEmpty()
   @IsString()
-  thread_id: string;
+  @IsOptional()
+  thread_id?: string;
 
   @IsOptional()
   @IsInt()

@@ -512,24 +512,24 @@ export namespace agents {
   /**
    * Get messages from agents using the optimized function
    * @param agentId - Agent ID
-   * @param threadId - Thread ID (optional)
    * @param userId - User ID
-   * @param includeDeleted - Include deleted messages
+   * @param threadId - Thread ID (optional, if null returns all messages for the agent)
+   * @param orderDesc - Sort order (false = ascending, true = descending)
    * @param limit - Limit number of messages
    * @param offset - Offset for pagination
    * @returns Promise<any[]>
    */
   export async function getMessagesOptimized(
     agentId: string,
-    threadId: string | null,
     userId: string,
-    includeDeleted: boolean,
+    threadId: string | null | undefined,
+    orderDesc: boolean,
     limit: number,
     offset: number
   ): Promise<any[]> {
     const query = new Postgres.Query(
-      `SELECT * FROM get_messages_optimized($1::UUID,$2,$3::UUID,$4,$5,$6)`,
-      [agentId, threadId, userId, includeDeleted, limit, offset]
+      `SELECT * FROM get_messages_optimized($1::UUID,$2::UUID,$3,$4,$5,$6)`,
+      [agentId, userId, threadId ?? null, orderDesc, limit, offset]
     );
 
     const result = await Postgres.query<any>(query);

@@ -210,6 +210,7 @@ export class SnakAgent extends BaseAgent {
 
     const chunkOutput: ChunkOutput = {
       event: chunk.event,
+      agent_id: this.agentConfig.id,
       run_id: chunk.run_id,
       checkpoint_id: state.config.configurable?.checkpoint_id,
       thread_id: state.config.configurable?.thread_id,
@@ -406,6 +407,7 @@ export class SnakAgent extends BaseAgent {
         }
         yield {
           event: lastChunk.event,
+          agent_id: this.agentConfig.id,
           run_id: lastChunk.run_id,
           from: GraphNode.END_GRAPH,
           thread_id: threadId,

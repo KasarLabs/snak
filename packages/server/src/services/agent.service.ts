@@ -253,8 +253,8 @@ export class AgentService implements IAgentService {
       const limit = userRequest.limit_message || 10;
       const res = await agents.getMessagesOptimized(
         userRequest.agent_id,
-        userRequest.thread_id,
         userId,
+        userRequest.thread_id ?? null,
         false,
         limit,
         0

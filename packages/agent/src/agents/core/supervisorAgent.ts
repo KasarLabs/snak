@@ -88,6 +88,7 @@ export class SupervisorAgent extends BaseAgent {
     };
     const chunkOutput: ChunkOutput = {
       event: chunk.event,
+      agent_id: this.agentConfig.id,
       run_id: chunk.run_id,
       checkpoint_id: state.config.configurable?.checkpoint_id,
       thread_id: state.config.configurable?.thread_id,
@@ -247,16 +248,12 @@ export class SupervisorAgent extends BaseAgent {
       if (!lastChunk || !currentCheckpointId) {
         throw new Error('No output from autonomous execution');
       }
-
-      const startTime = Date.now();
-      if (isInterruptHandle === false) {
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        await this.pgCheckpointer.deleteThread(threadId);
-        logger.info(`[SupervisorAgent] deleteThread took ${duration}ms`);
-      }
+      logger.info(
+        `[SupervisorAgent] Execution completed for thread ${threadId}`
+      );
       yield {
         event: lastChunk.event,
+        agent_id: this.agentConfig.id,
         run_id: lastChunk.run_id,
         from: SupervisorNode.END_GRAPH,
         thread_id: threadId,

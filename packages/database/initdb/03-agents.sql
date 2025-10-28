@@ -171,7 +171,7 @@ CREATE TRIGGER update_agents_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
--- VALIDATION FUNCTION
+-- VALIDATION FUNCTION~
 -- ============================================================================
 
 -- Function to validate agent data completeness before insertion
