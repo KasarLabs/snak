@@ -2,8 +2,7 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOpenAI } from '@langchain/openai';
-import { ModelConfig } from '@snakagent/core';
-import { logger } from 'starknet';
+import { logger, ModelConfig } from '@snakagent/core';
 
 /**
  * Initializes model instances based on the loaded configuration.
