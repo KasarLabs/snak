@@ -46,13 +46,6 @@ import {
 
 import { supervisorAgentConfig } from '@snakagent/core';
 
-export interface SupervisorRequestDTO {
-  request: {
-    content: string;
-    agent_id?: string;
-  };
-}
-
 export interface AgentAvatarResponseDTO {
   id: string;
   avatar_mime_type: string;

@@ -7,7 +7,9 @@ import {
   Min,
   Max,
   IsInt,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 /**
  * DTO for retrieving messages from a specific agent
@@ -59,27 +61,11 @@ export class Message {
   @Length(1, 10000)
   content: string;
 }
-
 export class AgentRequestDTO {
   @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => Message)
   request: Message;
-}
-
-export class SupervisorRequest {
-  @IsNotEmpty()
-  @IsString()
-  @Length(1, 10000)
-  content: string;
-
-  @IsOptional()
-  @IsString()
-  @IsUUID()
-  agentId?: string; // Optional: specify which agent to use
-}
-
-export class SupervisorRequestDTO {
-  @IsNotEmpty()
-  request: SupervisorRequest;
 }
 
 export class getMessagesFromAgentsDTO {

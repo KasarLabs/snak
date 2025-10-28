@@ -2,4 +2,4 @@
  * Re-export all HITL prompts
  */
 
-export * from './hitl-contraint.prompt.js';
+export * from './hitl-constraint.prompt.js';

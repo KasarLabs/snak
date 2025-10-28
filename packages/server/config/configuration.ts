@@ -25,7 +25,7 @@ export class ConfigurationService {
         'DEFAULT_MODEL_PROVIDER'
       ),
       DEFAULT_MODEL_NAME: this.configService.get<string>('DEFAULT_MODEL_NAME'),
-      DEFAULT_TEMPERATURE: this.configService.get<string>(
+      DEFAULT_TEMPERATURE: this.configService.get<number>(
         'DEFAULT_TEMPERATURE'
       ),
       GUARDS_CONFIG_PATH: this.configService.get<string>('GUARDS_CONFIG_PATH'),

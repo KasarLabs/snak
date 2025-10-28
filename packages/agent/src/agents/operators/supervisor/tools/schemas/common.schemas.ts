@@ -52,7 +52,6 @@ export const ModelConfigSchema = z.object({
     .refine((val) => modelGuardsValues.allowed_models.includes(val), {
       message: `Model must be one of: ${modelGuardsValues.allowed_models.join(', ')}`,
     })
-    .optional()
     .describe('Model name'),
   temperature: z
     .number()
