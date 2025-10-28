@@ -21,7 +21,7 @@ import {
   isInterrupt,
 } from '@agents/graphs/utils/graph.utils.js';
 import { notify } from '@snakagent/database/queries';
-
+import { v4 as uuidv4 } from 'uuid';
 /**
  * Supervisor agent for managing and coordinating multiple agents
  */
@@ -158,7 +158,7 @@ export class SupervisorAgent extends BaseAgent {
    * @param input - The input for execution
    * @returns AsyncGenerator yielding ChunkOutput
    */
-  public async *execute(userRequest: UserRequest): AsyncGenerator<ChunkOutput> {
+  public async *execute(request: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
       let currentCheckpointId: string | undefined = undefined;
       let lastChunk: StreamEvent | undefined = undefined;
@@ -174,7 +174,7 @@ export class SupervisorAgent extends BaseAgent {
       if (this.pgCheckpointer === null) {
         throw new Error('Checkpointer is not initialized');
       }
-      const threadId = this.agentConfig.id;
+      const threadId = request.thread_id ? request.thread_id : uuidv4();
       const configurable = {
         thread_id: threadId,
         agent_config: this.agentConfig,
@@ -195,8 +195,8 @@ export class SupervisorAgent extends BaseAgent {
         throw new Error('Failed to retrieve initial graph state');
       }
       const executionInput = isInterrupt(stateSnapshot)
-        ? getInterruptCommand(userRequest.request)
-        : { messages: [new HumanMessage(userRequest.request || '')] };
+        ? getInterruptCommand(request.request)
+        : { messages: [new HumanMessage(request.request || '')] };
 
       if (
         stateSnapshot.values.transfer_to &&
@@ -237,7 +237,7 @@ export class SupervisorAgent extends BaseAgent {
         const chunkProcessed = this.processChunkOutput(
           chunk,
           stateSnapshot,
-          userRequest.request,
+          request.request,
           0
         );
         if (chunkProcessed) {
@@ -268,7 +268,7 @@ export class SupervisorAgent extends BaseAgent {
           error: undefined,
           final: true,
           is_human: isInterruptHandle,
-          user_request: userRequest.request,
+          user_request: request.request,
           transfer_to: isTransferHandle
             ? stateSnapshot.values.transfer_to
             : null,
