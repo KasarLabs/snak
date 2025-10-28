@@ -203,7 +203,7 @@ export class SupervisorGraph {
           ...getSupervisorConfigModifierTools(this.supervisorConfig),
           ...getSupervisorReadTools(this.supervisorConfig),
           ...getSupervisorCommunicationTools(),
-          transferBackToSupervisorTool(),
+          transferBackToSupervisorTool()
         ],
         name: 'agentConfigurationHelper',
         prompt: formattedAgentConfigurationHelperPrompt,
@@ -248,7 +248,7 @@ export class SupervisorGraph {
       this.supervisorConfig.user_id
     );
     logger.info(
-      `[SupervisorGraph] Found ${agentsAvailable.length} avaible agents for user ${this.supervisorConfig.user_id}`
+      `[SupervisorGraph] Found ${agentsAvailable.length} avaible age1nts for user ${this.supervisorConfig.user_id}`
     );
     this.specializedAgent.push(
       createReactAgent({

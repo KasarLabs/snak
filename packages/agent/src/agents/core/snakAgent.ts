@@ -26,7 +26,7 @@ import {
   getInterruptCommand,
   isInterrupt,
 } from '@agents/graphs/utils/graph.utils.js';
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 /**
  * Main agent for interacting with the Starknet blockchain
  * Supports multiple execution modes: interactive, autonomous, and hybrid
