@@ -23,7 +23,7 @@ async function testFiles() {
   await testRunner.runTest('Health Check', () => testRunner.client.healthCheck());
 
   const createResult = await testRunner.runTest('Create Agent for File Testing', () => 
-    testRunner.client.createAgent({~
+    testRunner.client.createAgent({
       agent: {
         name: 'File Test Agent',
         group: 'test',

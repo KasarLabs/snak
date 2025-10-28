@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 export type * from './common/agent/interfaces/agent.interface.js';
 
 export * from './common/agent/interfaces/agent.interface.js';
