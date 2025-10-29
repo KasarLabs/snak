@@ -129,24 +129,43 @@ services:
       - "4180:4180"
       - "44180:44180"
 
+  # snak-frontend:
+  #   build:
+  #     context: ../snak-app/frontend
+  #     dockerfile: Dockerfile
+  #   container_name: 'snak-frontend'
+  #   env_file:
+  #     - ../snak-app/frontend/.env
+  #   networks: [snaknet]
+  #   ports:
+  #     - '3000:3000'
+
+  # snak-bff:
+  #   build:
+  #     context: ../snak-app/backend
+  #     dockerfile: Dockerfile
+  #   container_name: 'snak-bff'
+  #   env_file:
+  #     - ../snak-app/backend/.env
+  #   networks: [snaknet]
+  #   ports:
+  #     - '3001:3001'
+
   snak-frontend:
-    build:
-      context: ../snak-app/frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/kasarlabs/snak-app/snak-frontend:latest
     container_name: 'snak-frontend'
     env_file:
-      - ../snak-app/frontend/.env
+      - .env.snak-frontend
     networks: [snaknet]
     ports:
       - '3000:3000'
 
   snak-bff:
-    build:
-      context: ../snak-app/backend
-      dockerfile: Dockerfile
+    image: ghcr.io/kasarlabs/snak-app/snak-bff:latest
     container_name: 'snak-bff'
     env_file:
-      - ../snak-app/backend/.env
+      - .env.snak-bff
     networks: [snaknet]
     ports:
       - '3001:3001'
+

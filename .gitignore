@@ -71,3 +71,6 @@ redis_data/
 # Certs
 **/certs/*.crt
 **/certs/*.key
+
+.env.snak-bff
+.env.snak-frontend
