@@ -35,7 +35,6 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
         `Unsupported Gemini model: ${model.model_name}. Supported models: ${SUPPORTED_GEMINI_MODELS.join(', ')}`
       );
     }
-
     const modelInstance = new ChatGoogleGenerativeAI({
       model: model.model_name,
       verbose: false,
