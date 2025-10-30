@@ -479,7 +479,11 @@ export class MemoryDBManager {
       };
     }
 
-    if (!episodic_memory.sources || !Array.isArray(episodic_memory.sources) || episodic_memory.sources.length <= 0) {
+    if (
+      !episodic_memory.sources ||
+      !Array.isArray(episodic_memory.sources) ||
+      episodic_memory.sources.length <= 0
+    ) {
       return {
         success: false,
         error: 'Sources Array cannot be empty',

@@ -131,7 +131,7 @@ export class Message {
   content?: string;
 }
 
-export class AgentRequestDTO { 
+export class AgentRequestDTO {
   @IsNotEmpty()
   request: Message;
 }
@@ -212,7 +212,7 @@ export type AgentResponse<T = unknown> =
   | { status: 'waiting_for_human_input'; data?: T }
   | { status: 'failure'; error: string; data?: T };
 
-  /**
+/**
  * Request to get a specific agent’s MCP config
  */
 export class GetAgentMcpsRequestDTO {

@@ -95,8 +95,8 @@ You will have access to \`execute_handoff_to_*\` functions that route to specifi
 **TERMINAL OPERATION**: When you use an execute_handoff tool, it is a terminal operation. When you route to an agent, execution immediately stops and control transfers to that agent until you receive another user request.
 
 **Important Rules:**
-- You must include a clear, specific query when performing the handoff that describes what the specialized agent needs to accomplish
 - You cannot perform any actions after executing a handoff
+- If user asking an specific query, fill the query optional query field when performing the handoff that describes what the specialized agent needs to accomplish
 - Ensure you've completed all necessary investigation and information gathering BEFORE calling the handoff tool
 - Make your handoff decision with confidence based on the agent configurations you've reviewed
 - Include relevant context about the user's request when performing the handoff

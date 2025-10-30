@@ -186,9 +186,15 @@ export const MemoryTimeoutsSchema = z.object({
 // Schema for MemoryConfig
 export const MemoryConfigSchema = z.object({
   ltm_enabled: z.boolean().optional().describe('Long-term memory enabled'),
-  size_limits: MemorySizeLimitsSchema.partial().optional().describe('Memory size limits'),
-  thresholds: MemoryThresholdsSchema.partial().optional().describe('Memory thresholds'),
-  timeouts: MemoryTimeoutsSchema.partial().optional().describe('Memory timeouts'),
+  size_limits: MemorySizeLimitsSchema.partial()
+    .optional()
+    .describe('Memory size limits'),
+  thresholds: MemoryThresholdsSchema.partial()
+    .optional()
+    .describe('Memory thresholds'),
+  timeouts: MemoryTimeoutsSchema.partial()
+    .optional()
+    .describe('Memory timeouts'),
   strategy: z
     .enum(['holistic', 'categorized'])
     .optional()

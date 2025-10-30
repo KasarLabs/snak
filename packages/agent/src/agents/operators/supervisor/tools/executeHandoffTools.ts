@@ -45,10 +45,13 @@ export function createExecuteHandoffTools(
     description: `Executing handoff to ${agentName}`,
     schema: z
       .object({
-        query: z.string().describe('Query to send to the agent upon handoff'),
+        query: z
+          .string()
+          .optional()
+          .describe('Query to send to the agent upon handoff'),
       })
       .strict(),
-    func: async (query: string) => {
+    func: async (query?: string) => {
       const tool_id = uuidv4();
       const aiMessage = new AIMessage(`Executing handoff to ${agentName}`);
       aiMessage.tool_calls = [

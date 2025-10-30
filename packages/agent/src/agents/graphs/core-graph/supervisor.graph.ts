@@ -203,7 +203,7 @@ export class SupervisorGraph {
           ...getSupervisorConfigModifierTools(this.supervisorConfig),
           ...getSupervisorReadTools(this.supervisorConfig),
           ...getSupervisorCommunicationTools(),
-          transferBackToSupervisorTool()
+          transferBackToSupervisorTool(),
         ],
         name: 'agentConfigurationHelper',
         prompt: formattedAgentConfigurationHelperPrompt,

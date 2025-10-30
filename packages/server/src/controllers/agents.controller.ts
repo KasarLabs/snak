@@ -312,7 +312,6 @@ export class AgentsController {
       request: userRequest.request.content ?? '',
     };
 
-    console.log(messageRequest);
     if (messageRequest.thread_id) {
       const isThreadExists = await message.check_thread_exists_for_agent(
         messageRequest.thread_id,
@@ -609,8 +608,6 @@ export class AgentsController {
     logger.info('get_agents called');
     const userId = ControllerHelpers.getUserId(req);
     const agents = await this.agentService.getAllAgentsOfUser(userId);
-    console.log();
-    console.log(agents);
     return ResponseFormatter.success(agents);
   }
 

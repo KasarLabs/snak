@@ -301,8 +301,6 @@ export class SnakAgent extends BaseAgent {
     request: UserRequest
   ): AsyncGenerator<ChunkOutput> {
     try {
-      console.log('[SnakAgent] Starting execution...');
-      console.log(request);
       let lastChunk: StreamEvent | undefined = undefined;
       let retryCount: number = 0;
       let currentCheckpointId: string | undefined = undefined;

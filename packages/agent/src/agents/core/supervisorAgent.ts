@@ -161,8 +161,6 @@ export class SupervisorAgent extends BaseAgent {
    */
   public async *execute(request: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
-      console.log('[SupervisorAgent] Starting execution...');
-      console.log(request);
       let currentCheckpointId: string | undefined = undefined;
       let lastChunk: StreamEvent | undefined = undefined;
       let stateSnapshot: StateSnapshot;
@@ -209,7 +207,6 @@ export class SupervisorAgent extends BaseAgent {
           transfer_to: [],
         });
       }
-      console.log(isInterrupt(stateSnapshot));
       for await (const chunk of this.compiledStateGraph.streamEvents(
         executionInput,
         executionConfig
