@@ -110,7 +110,7 @@ function normalizeModelConfig(
 
   if (model && isPlainObject(model)) {
     const config: AgentConfig.Input['graph']['model'] = {
-      provider: DEFAULT_AGENT_CONFIG.graph.model.provider,
+      model_provider: DEFAULT_AGENT_CONFIG.graph.model.model_provider,
       model_name: DEFAULT_AGENT_CONFIG.graph.model.model_name,
       temperature: DEFAULT_AGENT_CONFIG.graph.model.temperature,
       max_tokens: DEFAULT_AGENT_CONFIG.graph.model.max_tokens,
@@ -118,11 +118,11 @@ function normalizeModelConfig(
 
     // Normalize provider
     const providerResult = normalizeStringValue(
-      model.provider,
-      DEFAULT_AGENT_CONFIG.graph.model.provider,
-      'model.provider'
+      model.model_provider,
+      DEFAULT_AGENT_CONFIG.graph.model.model_provider,
+      'model.model_provider'
     );
-    config.provider = providerResult.value;
+    config.model_provider = providerResult.value;
     if (providerResult.appliedDefault) {
       appliedDefaults.push(providerResult.appliedDefault);
     }

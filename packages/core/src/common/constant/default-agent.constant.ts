@@ -5,7 +5,7 @@ import {
 } from '@common/agent/interfaces/agent.interface.js';
 
 export const DEFAULT_AGENT_MODEL: ModelConfig = {
-  provider: 'gemini',
+  model_provider: 'gemini',
   model_name: 'gemini-2.5-flash',
   temperature: 0.7,
   max_tokens: 4096,

@@ -478,7 +478,7 @@ BEGIN
           COALESCE((p_config->'graph'->>'execution_timeout_ms')::bigint, (graph).execution_timeout_ms),
           COALESCE((p_config->'graph'->>'max_token_usage')::integer, (graph).max_token_usage),
           ROW(
-            COALESCE(p_config->'graph'->'model'->>'provider', ((graph).model).model_provider),
+            COALESCE(p_config->'graph'->'model'->>'model_provider', p_config->'graph'->'model'->>'provider', ((graph).model).model_provider),
             COALESCE(p_config->'graph'->'model'->>'model_name', ((graph).model).model_name),
             COALESCE((p_config->'graph'->'model'->>'temperature')::numeric(3,2), ((graph).model).temperature),
             COALESCE((p_config->'graph'->'model'->>'max_tokens')::integer, ((graph).model).max_tokens)
@@ -700,7 +700,7 @@ BEGIN
       (p_config->'graph'->>'execution_timeout_ms')::bigint,
       (p_config->'graph'->>'max_token_usage')::integer,
       ROW(
-        p_config->'graph'->'model'->>'provider',
+        COALESCE(p_config->'graph'->'model'->>'model_provider', p_config->'graph'->'model'->>'provider'),
         p_config->'graph'->'model'->>'model_name',
         (p_config->'graph'->'model'->>'temperature')::numeric(3,2),
         (p_config->'graph'->'model'->>'max_tokens')::integer

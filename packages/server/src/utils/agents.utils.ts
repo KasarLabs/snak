@@ -18,14 +18,14 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
     if (!model) {
       throw new Error('Model configuration is not defined');
     }
-    if (!model.provider) {
+    if (!model.model_provider) {
       throw new Error('Model provider is not defined');
     }
 
     // Only support Gemini provider
-    if (model.provider.toLowerCase() !== 'gemini') {
+    if (model.model_provider.toLowerCase() !== 'gemini') {
       throw new Error(
-        `Unsupported provider: ${model.provider}. Only 'gemini' is supported.`
+        `Unsupported provider: ${model.model_provider}. Only 'gemini' is supported.`
       );
     }
 
@@ -46,7 +46,7 @@ export function initializeModels(model: ModelConfig): BaseChatModel | null {
     return modelInstance;
   } catch (error) {
     logger.error(
-      `Failed to initialize model ${model.provider}: ${model.model_name}: ${error}`
+      `Failed to initialize model ${model.model_provider}: ${model.model_name}: ${error}`
     );
     return null;
   }

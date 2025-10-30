@@ -36,7 +36,7 @@ const modelGuardsValues: GuardsConfig['agents']['graph']['model'] =
   graphGuardsValues.model;
 // Schema for ModelConfig
 export const ModelConfigSchema = z.object({
-  provider: z
+  model_provider: z
     .string()
     .refine(
       (val) =>

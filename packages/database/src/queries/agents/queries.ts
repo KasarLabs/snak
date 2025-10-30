@@ -777,7 +777,7 @@ export namespace agents {
   ): Promise<ModelConfig | null> {
     const query = new Postgres.Query(
       `SELECT
-        (model).model_provider as "provider",
+        (model).model_provider as "model_provider",
         (model).model_name as "model_name",
         (model).temperature as "temperature",
         (model).max_tokens as "max_tokens"
