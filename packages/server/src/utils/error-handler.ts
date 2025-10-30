@@ -130,7 +130,7 @@ export class ErrorHandler {
         logger.error(`ServerError in ${context}:`, {
           errorCode: error.errorCode,
           message: error.message,
-          statusCode: error.statusCode
+          statusCode: error.statusCode,
         });
         client.emit(eventName, error);
         return;

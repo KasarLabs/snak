@@ -99,7 +99,6 @@ export function createAgentTool(
           notes.push(nameNote);
         }
 
-    
         // Insert into database
         const createdAgent = await agents.insertAgentFromJson(
           userId,

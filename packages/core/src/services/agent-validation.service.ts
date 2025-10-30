@@ -1,5 +1,8 @@
 import { getGuardValue } from './guards.service.js';
-import { AgentConfig, ModelConfig } from '../common/agent/interfaces/agent.interface.js';
+import {
+  AgentConfig,
+  ModelConfig,
+} from '../common/agent/interfaces/agent.interface.js';
 import logger from '../logger/logger.js';
 
 /**

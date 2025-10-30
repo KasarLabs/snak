@@ -290,7 +290,10 @@ export class AgentsController {
       throw new ServerError('E01TA400');
     }
     // Validate content is not empty
-    if (!userRequest.request.content || userRequest.request.content.trim().length === 0) {
+    if (
+      !userRequest.request.content ||
+      userRequest.request.content.trim().length === 0
+    ) {
       throw new ServerError('E04TA120'); // Invalid request format
     }
 

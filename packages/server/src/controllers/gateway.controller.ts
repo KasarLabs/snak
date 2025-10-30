@@ -62,13 +62,16 @@ export class MyGateway {
           agent_id: userRequest.request.agent_id,
           thread_id: userRequest.request.thread_id,
           content: userRequest.request.content,
-          content_length: userRequest.request.content?.length ?? 0
+          content_length: userRequest.request.content?.length ?? 0,
         });
         const userId = ControllerHelpers.getUserIdFromSocket(client);
         let agent: BaseAgent | undefined;
 
         // Validate content is not empty
-        if (!userRequest.request.content || userRequest.request.content.trim().length === 0) {
+        if (
+          !userRequest.request.content ||
+          userRequest.request.content.trim().length === 0
+        ) {
           logger.warn('Request validation failed: empty content');
           throw new ServerError('E04TA120'); // Invalid request format
         }
