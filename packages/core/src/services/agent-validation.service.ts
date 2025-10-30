@@ -275,10 +275,10 @@ export class AgentValidationService {
     const maxTokens = getGuardValue('agents.graph.model.max_tokens');
 
     // Validate provider - REQUIRED
-    if (!model.provider) {
+    if (!model.model_provider) {
       throw new Error('Model provider is required');
     }
-    if (model.provider.toLowerCase() !== allowedProvider.toLowerCase()) {
+    if (model.model_provider.toLowerCase() !== allowedProvider.toLowerCase()) {
       throw new Error(
         `Invalid model provider. Only '${allowedProvider}' is supported.`
       );

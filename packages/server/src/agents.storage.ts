@@ -366,7 +366,7 @@ export class AgentStorage implements OnModuleInit {
 
       // const model = await this.getModelFromUser(userId); // Need to be used when user_id table will be created
       const model: ModelConfig = {
-        provider: process.env.DEFAULT_MODEL_PROVIDER as string,
+        model_provider: process.env.DEFAULT_MODEL_PROVIDER as string,
         model_name: process.env.DEFAULT_MODEL_NAME as string,
         temperature: parseFloat(process.env.DEFAULT_TEMPERATURE ?? '0.7'),
         max_tokens: parseInt(process.env.DEFAULT_MAX_TOKENS ?? '4096'),

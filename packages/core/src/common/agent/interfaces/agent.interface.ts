@@ -3,7 +3,7 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
 export interface ModelConfig {
-  provider: string;
+  model_provider: string;
   model_name: string;
   description?: string;
   temperature: number;
