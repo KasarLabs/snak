@@ -4,23 +4,17 @@ import {
   GraphConfigSchema,
   MemoryConfigSchema,
   RAGConfigSchema,
-  McpServerConfigSchema,
   SelectAgentSchema,
-  McpServersArraySchema,
 } from './common.schemas.js';
-import { getGuardValue } from '@snakagent/core';
 
-const maxMcpServer = getGuardValue('agents.mcp_servers.max_servers');
 // Schema for update agent - allows partial updates with nullable fields
+// Note: mcp_servers is NOT included here - use add_mcp_server, update_mcp_server, or remove_mcp_server tools instead
 export const UpdateAgentSchema = SelectAgentSchema.extend({
   updates: z
     .object({
       profile: AgentProfileSchema.partial()
         .optional()
         .describe('Agent profile configuration (partial)'),
-      mcp_servers: McpServersArraySchema.optional().describe(
-        'MCP servers configuration'
-      ),
       memory: MemoryConfigSchema.optional().describe('Memory configuration'),
       rag: RAGConfigSchema.optional().describe('RAG configuration'),
       prompts_id: z

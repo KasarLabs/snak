@@ -1,27 +1,12 @@
 import { z } from 'zod';
-import {
-  AgentProfileSchema,
-  GraphConfigSchema,
-  MemoryConfigSchema,
-  RAGConfigSchema,
-  McpServersArraySchema,
-} from './common.schemas.js';
+import { AgentProfileSchema } from './common.schemas.js';
 
-// Main schema for creating an agent (profile required, other fields optional)
+// Main schema for creating an agent (only profile and prompts_id allowed)
 export const CreateAgentSchema = z
   .object({
-    profile: AgentProfileSchema.describe('Agent profile configuration'),
-    mcp_servers: McpServersArraySchema.optional().describe(
-      'MCP servers configuration'
+    profile: AgentProfileSchema.describe(
+      'Agent profile configuration (required)'
     ),
-    memory: MemoryConfigSchema.optional().describe('Memory configuration'),
-    rag: RAGConfigSchema.optional().describe('RAG configuration'),
-    prompts_id: z
-      .string()
-      .uuid()
-      .optional()
-      .describe('Existing prompts configuration identifier'),
-    graph: GraphConfigSchema.optional().describe('Graph configuration'),
   })
   .strict();
 
