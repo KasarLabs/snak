@@ -65,6 +65,7 @@ export class AgentService implements IAgentService {
 
       const user_request: UserRequest = {
         request: userRequest.request || '',
+        thread_id: userRequest.thread_id || undefined,
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 
@@ -163,6 +164,7 @@ export class AgentService implements IAgentService {
     try {
       const user_request: UserRequest = {
         request: userRequest.request || '',
+        thread_id: userRequest.thread_id || undefined,
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 

@@ -161,6 +161,8 @@ export class SupervisorAgent extends BaseAgent {
    */
   public async *execute(request: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
+      console.log('[SupervisorAgent] Starting execution...');
+      console.log(request);
       let currentCheckpointId: string | undefined = undefined;
       let lastChunk: StreamEvent | undefined = undefined;
       let stateSnapshot: StateSnapshot;
@@ -199,7 +201,10 @@ export class SupervisorAgent extends BaseAgent {
         ? getInterruptCommand(request.request)
         : { messages: [new HumanMessage(request.request || '')] };
 
-      if (stateSnapshot.values.transfer_to && stateSnapshot.values.transfer_to.length > 0) {
+      if (
+        stateSnapshot.values.transfer_to &&
+        stateSnapshot.values.transfer_to.length > 0
+      ) {
         await this.compiledStateGraph.updateState(executionConfig, {
           transfer_to: [],
         });
@@ -216,7 +221,9 @@ export class SupervisorAgent extends BaseAgent {
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve graph state during execution');
         }
-        isTransferHandle = stateSnapshot.values.transfer_to && stateSnapshot.values.transfer_to.length > 0;
+        isTransferHandle =
+          stateSnapshot.values.transfer_to &&
+          stateSnapshot.values.transfer_to.length > 0;
         currentCheckpointId = stateSnapshot.config.configurable?.checkpoint_id;
         lastChunk = chunk;
         if (

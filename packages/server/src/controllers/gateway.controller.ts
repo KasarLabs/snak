@@ -27,7 +27,7 @@ import { AgentResponse } from '@snakagent/core';
 
 @WebSocketGateway({
   cors: {
-    origin: 'http://localhost:4000',
+    origin: ['http://localhost:4000', 'http://localhost:3001', 'http://localhost:3000'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -55,8 +55,7 @@ export class MyGateway {
           throw new WsException('Socket connection is invalid or disconnected');
         }
         logger.info('handleUserRequest called');
-        logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
-
+        console.log('Received userRequest:', userRequest);
         const userId = ControllerHelpers.getUserIdFromSocket(client);
         let agent: BaseAgent | undefined;
 
@@ -111,6 +110,7 @@ export class MyGateway {
               `Inserted message with ID: ${messageId.toLocaleString()}`
             );
           }
+          console.log('Emitting chunk to client:', chunk.event);
           client.emit('onAgentRequest', chunk);
         }
       },

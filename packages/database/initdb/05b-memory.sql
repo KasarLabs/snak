@@ -499,9 +499,9 @@ BEGIN
                 'category', category
             ) as meta
         FROM semantic_memories sm
-        WHERE user_id = p_user_id
-        AND task_id = p_task_id
-        AND thread_id = p_thread_id
+        WHERE sm.user_id = p_user_id
+        AND sm.task_id = p_task_id
+        AND sm.thread_id = p_thread_id
     ),
     task_episodic AS (
         -- Retrieve all episodic memories for the task
@@ -520,10 +520,10 @@ BEGIN
                 'expires_at', expires_at
             ) as meta
         FROM episodic_memories em
-        WHERE user_id = p_user_id
-            AND task_id = p_task_id
-            AND thread_id = p_thread_id
-            AND expires_at > NOW()  -- Only non-expired memories
+        WHERE em.user_id = p_user_id
+            AND em.task_id = p_task_id
+            AND em.thread_id = p_thread_id
+            AND em.expires_at > NOW()  -- Only non-expired memories
     )
     -- Combine and sort by creation time (most recent first)
     SELECT * FROM (
@@ -576,9 +576,9 @@ BEGIN
                 'category', category
             ) as meta
         FROM semantic_memories sm
-        WHERE user_id = p_user_id
-        AND step_id = p_step_id
-        AND thread_id = p_thread_id
+        WHERE sm.user_id = p_user_id
+        AND sm.step_id = p_step_id
+        AND sm.thread_id = p_thread_id
     ),
     step_episodic AS (
         -- Retrieve all episodic memories for the step
@@ -597,10 +597,10 @@ BEGIN
                 'expires_at', expires_at
             ) as meta
         FROM episodic_memories em
-        WHERE user_id = p_user_id
-            AND step_id = p_step_id
-            AND thread_id = p_thread_id
-            AND expires_at > NOW()  -- Only non-expired memories
+        WHERE em.user_id = p_user_id
+            AND em.step_id = p_step_id
+            AND em.thread_id = p_thread_id
+            AND em.expires_at > NOW()  -- Only non-expired memories
     )
     -- Combine and sort by creation time (most recent first)
     SELECT * FROM (

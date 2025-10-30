@@ -26,7 +26,7 @@ import {
   getInterruptCommand,
   isInterrupt,
 } from '@agents/graphs/utils/graph.utils.js';
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 /**
  * Main agent for interacting with the Starknet blockchain
  * Supports multiple execution modes: interactive, autonomous, and hybrid
@@ -301,6 +301,8 @@ export class SnakAgent extends BaseAgent {
     request: UserRequest
   ): AsyncGenerator<ChunkOutput> {
     try {
+      console.log('[SnakAgent] Starting execution...');
+      console.log(request);
       let lastChunk: StreamEvent | undefined = undefined;
       let retryCount: number = 0;
       let currentCheckpointId: string | undefined = undefined;
