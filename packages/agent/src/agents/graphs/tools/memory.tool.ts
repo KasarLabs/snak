@@ -8,7 +8,7 @@ import {
   retrieveMemoryFromStepIdType,
   retrieveMemoryFromTaskId,
   retrieveMemoryFromTaskIdType,
-} from '@stypes/memory.types.js';
+} from '@stypes/memory.type.js';
 import { AgentConfig, logger } from '@snakagent/core';
 import { memory } from '@snakagent/database/queries';
 import { embeddingModel } from '../manager/memory/memory-db-manager.js';

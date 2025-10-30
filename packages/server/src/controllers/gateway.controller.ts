@@ -14,12 +14,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import {
+  AddAgentRequestDTO,
+  AgentDeleteRequestDTO,
+  AgentRequestDTO,
   logger,
-  WebsocketAgentAddRequestDTO,
-  WebsocketAgentDeleteRequestDTO,
-  WebsocketAgentRequestDTO,
-  WebsocketGetAgentsConfigRequestDTO,
-  WebsocketGetMessagesRequestDTO,
+  MessageFromAgentIdDTO,
 } from '@snakagent/core';
 import { message } from '@snakagent/database/queries';
 import { BaseAgent, EventType, SnakAgent } from '@snakagent/agents';
@@ -50,7 +49,7 @@ export class MyGateway {
 
   @SubscribeMessage('agents_request')
   async handleUserRequest(
-    @MessageBody() userRequest: WebsocketAgentRequestDTO,
+    @MessageBody() userRequest: AgentRequestDTO,
     @ConnectedSocket() client: Socket
   ): Promise<void> {
     await ErrorHandler.handleWebSocketError(
@@ -62,34 +61,10 @@ export class MyGateway {
         const userId = ControllerHelpers.getUserIdFromSocket(client);
         let agent: BaseAgent | undefined;
 
-        if (userRequest.request.agent_id === undefined) {
-          logger.info(
-            'Agent ID not provided in request, Using agent Selector to select agent'
-          );
-
-          const agentSelector = this.agentFactory.getAgentSelector();
-          if (!agentSelector) {
-            throw new ServerError('E01TA400');
-          }
-          if (!userRequest.request.request) {
-            throw new ServerError('E01TA400'); // Bad request if no content
-          }
-          try {
-            agent = await agentSelector.execute(
-              userRequest.request.request,
-              false,
-              { userId }
-            );
-          } catch (error) {
-            logger.error('Error in agentSelector:', error);
-            throw new ServerError('E01TA400');
-          }
-        } else {
-          agent = await this.agentFactory.getAgentInstance(
-            userRequest.request.agent_id,
-            userId
-          );
-        }
+        agent = await this.agentFactory.getAgentInstance(
+          userRequest.request.agent_id,
+          userId
+        );
         if (!agent) {
           throw new ServerError('E01TA400');
         }

@@ -2,7 +2,7 @@ import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { BaseToolRegistry } from './base-tool-registry.js';
 import { AnyZodObject } from 'zod';
 import { AgentConfig } from '@snakagent/core';
-import { ThoughtsSchema } from '@schemas/graph.schemas.js';
+import { ThoughtsSchema } from '@schemas/graph.schema.js';
 
 export class TaskExecutorToolRegistry extends BaseToolRegistry {
   constructor() {

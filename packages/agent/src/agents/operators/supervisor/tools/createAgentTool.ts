@@ -10,7 +10,7 @@ import {
 
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
-import { redisAgents, agents } from '@snakagent/database/queries';
+import { agents } from '@snakagent/database/queries';
 import { validateAgentProperties } from '../utils/agents.validators.js';
 
 const dbInterface: AgentDatabaseInterface = {
@@ -115,14 +115,6 @@ export function createAgentTool(
             message:
               'Failed to create agent - database insertion no data returned',
           });
-        }
-
-        try {
-          await redisAgents.saveAgent(createdAgent);
-          logger.debug(`Agent ${createdAgent.id} saved to Redis`);
-        } catch (error) {
-          logger.error(`Failed to save agent to Redis: ${error}`);
-          // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
         }
 
         const noteSuffix =

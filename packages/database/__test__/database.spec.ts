@@ -532,21 +532,22 @@ describe('Custom Types Operations', () => {
 
   it('should work with model composite type', async () => {
     const q = new Postgres.Query(
-      `SELECT ROW('openai', 'gpt-4', 'Advanced AI model')::model as model_config,
-       (ROW('openai', 'gpt-4', 'Advanced AI model')::model).provider as provider_name`
+      `SELECT ROW('gemini', 'gemini-2.5-flash', 0.7, 4096)::model_config as model_config,
+       (ROW('gemini', 'gemini-2.5-flash', 0.7, 4096)::model_config).model_provider as provider_name`
     );
 
     interface ModelTest {
       model_config: {
-        provider: string;
-        modelName: string;
-        description: string;
+        model_provider: string;
+        model_name: string;
+        temperature: number;
+        max_tokens: number;
       };
       provider_name: string;
     }
 
     const [result] = await Postgres.query<ModelTest>(q);
-    expect(result.provider_name).toBe('openai');
+    expect(result.provider_name).toBe('gemini');
   });
 });
 

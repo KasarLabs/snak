@@ -1,7 +1,7 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { AnyZodObject } from 'zod';
 import { BaseToolRegistry } from './base-tool-registry.js';
-import { ThoughtsSchema } from '@schemas/graph.schemas.js';
+import { ThoughtsSchema } from '@schemas/graph.schema.js';
 
 const endTask = (): string => {
   return 'Task ended successfully';

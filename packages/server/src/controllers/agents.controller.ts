@@ -36,23 +36,11 @@ import {
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
-import { Postgres } from '@snakagent/database';
-import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
-import {
-  notify,
-  message,
-  agents,
-  redisAgents,
-} from '@snakagent/database/queries';
+import { BaseAgent } from '@snakagent/agents';
+import { notify, message, agents } from '@snakagent/database/queries';
 
 import { supervisorAgentConfig } from '@snakagent/core';
-
-export interface SupervisorRequestDTO {
-  request: {
-    content: string;
-    agent_id?: string;
-  };
-}
+import { initializeAgentConfigIfMissingParams } from '../utils/agents.utils.js';
 
 export interface AgentAvatarResponseDTO {
   id: string;
@@ -130,14 +118,8 @@ export class AgentsController {
       throw new BadRequestException('Agent not found');
     }
 
-    try {
-      await redisAgents.updateAgent(updatedAgent);
-    } catch (err) {
-      logger.warn(
-        `Redis sync failed for agent ${updatedAgent.id}: ${err instanceof Error ? err.message : String(err)}`
-      );
-      // Continue: PostgreSQL is the source of truth
-    }
+    // Redis will be synchronized via outbox events triggered by PostgreSQL triggers
+    // No direct Redis write needed - the outbox worker will handle synchronization
 
     return ResponseFormatter.success({
       id: updatedAgent.id,
@@ -303,6 +285,7 @@ export class AgentsController {
       userRequest.request.agent_id,
       userId
     );
+
     if (!agent) {
       throw new ServerError('E01TA400');
     }
@@ -373,11 +356,15 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     logger.info('init_agent called');
     const userId = ControllerHelpers.getUserId(req);
-
-    this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
+    const agentConfigurationNormalized = initializeAgentConfigIfMissingParams(
+      userRequest.agent
+    );
+    this.supervisorService.validateNotSupervisorAgent(
+      agentConfigurationNormalized
+    );
 
     const newAgentConfig = await this.agentFactory.addAgent(
-      userRequest.agent,
+      agentConfigurationNormalized,
       userId
     );
 

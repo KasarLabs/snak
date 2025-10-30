@@ -49,6 +49,16 @@
     "max_summary_length": 350,
     "max_description_length": 1000
   },
+  "agent_runtime": {
+    "cache": {
+      "max_entries": 64,
+      "max_ttl_ms": 300000
+    }
+  },
+  "agent_cfg_worker": {
+    "batch_size": 200,
+    "poll_interval_ms": 2000
+  },
   "mcp": {
     "max_limit_tools": 100,
     "max_timeout": 30000,
@@ -92,10 +102,8 @@
       "max_execution_timeout_ms": 500000,
       "max_token_usage": 200000,
       "model": {
-        "provider_max_length": 100,
-        "provider_min_length": 3,
-        "model_name_max_length": 100,
-        "model_name_min_length": 3,
+        "allowed_provider": "gemini",
+        "allowed_models": ["gemini-2.5-flash", "gemini-2.5-pro"],
         "max_temperature": 1,
         "max_tokens": 8192
       }

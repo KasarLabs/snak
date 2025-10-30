@@ -14,7 +14,7 @@ import {
   HolisticMemoryContext,
   MemoryOperationResult,
   SemanticMemoryContext,
-} from '../../../../shared/types/memory.types.js';
+} from '../../../../shared/types/memory.type.js';
 
 export const embeddingModel = new CustomHuggingFaceEmbeddings({
   model: 'Xenova/all-MiniLM-L6-v2',

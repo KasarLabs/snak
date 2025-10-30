@@ -1,7 +1,7 @@
 import { DynamicStructuredTool, tool } from '@langchain/core/tools';
 import { BaseToolRegistry } from './base-tool-registry.js';
 import { AnyZodObject } from 'zod';
-import { TaskSchema } from '@schemas/graph.schemas.js';
+import { TaskSchema } from '@schemas/graph.schema.js';
 
 export class TaskManagerToolRegistry extends BaseToolRegistry {
   constructor() {

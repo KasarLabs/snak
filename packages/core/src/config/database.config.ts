@@ -1,4 +1,4 @@
-import { DatabaseCredentials } from '../common/agent.js';
+import { DatabaseCredentials } from '../common/agent/interfaces/agent.interface.js';
 
 /**
  * Global database configuration service

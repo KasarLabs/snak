@@ -162,8 +162,6 @@ export class McpController {
       throw new BadRequestException('Failed to update MCP servers');
     }
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
-
     return ResponseFormatter.success({
       id: result.id,
       mcp_servers: formatMcpServersForResponse(result.mcp_servers),
@@ -209,8 +207,6 @@ export class McpController {
     const result = await agents.updateAgentMcpServers(agentId, userId, updated);
     if (!result) throw new BadRequestException('Failed to update MCP servers');
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
-
     return ResponseFormatter.success({
       agent_id: result.id,
       mcp_servers: formatMcpServersForResponse(result.mcp_servers),
@@ -252,8 +248,6 @@ export class McpController {
       throw new BadRequestException('Failed to update MCP servers');
     }
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
-
     return ResponseFormatter.success({
       id: result.id,
       mcp_servers: formatMcpServersForResponse(result.mcp_servers),
@@ -293,8 +287,6 @@ export class McpController {
       throw new BadRequestException('Failed to update MCP servers');
     }
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
-
     return ResponseFormatter.success({
       id: result.id,
       mcp_servers: formatMcpServersForResponse(result.mcp_servers),
@@ -319,8 +311,6 @@ export class McpController {
     if (!result) {
       throw new BadRequestException('Agent not found');
     }
-
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success({
       id: result.id,
@@ -383,8 +373,6 @@ export class McpController {
       updatedServers
     );
     if (!result) throw new BadRequestException('Failed to add env variable');
-
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success({
       agent_id: result.id,
@@ -532,8 +520,6 @@ export class McpController {
     );
     if (!result) throw new BadRequestException('Failed to update MCP key');
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
-
     return ResponseFormatter.success({
       agent_id: result.id,
       mcp_servers: formatMcpServersForResponse(result.mcp_servers),
@@ -583,8 +569,6 @@ export class McpController {
     if (!result) {
       throw new BadRequestException('Failed to update MCP profile');
     }
-
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success({
       id: result.id,
@@ -666,8 +650,6 @@ export class McpController {
       throw new BadRequestException('Failed to update MCP env value');
     }
 
-    await this.agentService.syncAgentToRedis(agentId, userId);
-
     return ResponseFormatter.success({
       agent_id: result.id,
       mcp_servers: formatMcpServersForResponse(result.mcp_servers),
@@ -722,8 +704,6 @@ export class McpController {
     if (!result) {
       throw new BadRequestException('Failed to delete MCP env');
     }
-
-    await this.agentService.syncAgentToRedis(agentId, userId);
 
     return ResponseFormatter.success({
       id: result.id,

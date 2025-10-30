@@ -36,7 +36,8 @@
     "./error": "./dist/error.js",
     "./queries": "./dist/queries/index.js",
     "./common": "./dist/queries/common.js",
-    "./redis": "./dist/redis.js"
+    "./redis": "./dist/redis.js",
+    "./workers/agent-cfg-outbox": "./dist/workers/agent-cfg-outbox.worker.js"
   },
   "typesVersions": {
     "*": {
@@ -54,12 +55,16 @@
       ],
       "redis": [
         "./dist/redis.d.ts"
+      ],
+      "workers/agent-cfg-outbox": [
+        "./dist/workers/agent-cfg-outbox.worker.d.ts"
       ]
     }
   },
   "dependencies": {
     "pg": "^8.14.1",
     "@snakagent/core": "workspace:*",
+    "@snakagent/metrics": "workspace:*",
     "ioredis": "^5.3.2"
   },
   "devDependencies": {

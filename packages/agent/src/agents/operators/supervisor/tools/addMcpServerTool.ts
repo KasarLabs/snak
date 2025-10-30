@@ -109,15 +109,6 @@ export function addMcpServerTool(
             `Added MCP server(s) "${added.join(', ')}" to agent "${agent.profile.name}" successfully for user ${userId}`
           );
 
-          // Update Redis cache
-          try {
-            await redisAgents.updateAgent(result);
-            logger.debug(`Agent ${result.id} updated in Redis`);
-          } catch (error) {
-            logger.error(`Failed to update agent in Redis: ${error}`);
-            // Don't throw here, Redis is a cache, PostgreSQL is the source of truth
-          }
-
           const message =
             added.length === 1
               ? `MCP server "${added[0]}" added successfully to agent "${agent.profile.name}"`

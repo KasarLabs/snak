@@ -24,8 +24,8 @@ import {
 } from '@langchain/core/messages';
 import { SUPERVISOR_SYSTEM_PROMPT } from '@prompts/agents/supervisor/supervisor.prompt.js';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/agentConfigurationHelper.prompt.js';
-import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/mcpConfigurationHelper.prompt.js';
+import { AGENT_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/supervisor/specialist/agentConfigurationHelper.prompt.js';
+import { MCP_CONFIGURATION_HELPER_SYSTEM_PROMPT } from '@prompts/agents/supervisor/specialist/mcpConfigurationHelper.prompt.js';
 import { Annotation } from '@langchain/langgraph';
 import { redisAgents } from '@snakagent/database/queries';
 import { AGENT_SELECTOR_SYSTEM_PROMPT } from '@prompts/agents/agentSelector.prompt.js';

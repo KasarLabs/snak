@@ -9,6 +9,7 @@ import { notify } from './notify/queries.js';
 import { message } from './message/queries.js';
 import { agents } from './agents/queries.js';
 import * as redisAgents from './redis/queries.js';
+import { agentCfgOutbox } from './agent-cfg-outbox/queries.js';
 
 export {
   scarb,
@@ -22,4 +23,5 @@ export {
   message,
   agents,
   redisAgents,
+  agentCfgOutbox,
 };

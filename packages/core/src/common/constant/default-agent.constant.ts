@@ -2,7 +2,7 @@ import {
   AgentConfig,
   MemoryStrategy,
   ModelConfig,
-} from '../../common/agent.js';
+} from '@common/agent/interfaces/agent.interface.js';
 
 export const DEFAULT_AGENT_MODEL: ModelConfig = {
   model_provider: 'gemini',

@@ -11,6 +11,7 @@ import {
   updateMcpServerTool,
   messageAskUserTool,
 } from './tools/index.js';
+import { searchMcpServerTool } from './tools/searchMcpServerTools.js';
 import { createExecuteHandoffTools } from './tools/executeHandoffTools.js';
 
 /**
@@ -53,6 +54,7 @@ export function getSupervisorMcpModifier(agentConfig: AgentConfig.Runtime) {
     addMcpServerTool(agentConfig),
     removeMcpServerTool(agentConfig),
     updateMcpServerTool(agentConfig),
+    searchMcpServerTool(),
   ];
 }
 

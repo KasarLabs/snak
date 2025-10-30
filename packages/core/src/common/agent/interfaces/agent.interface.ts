@@ -143,7 +143,19 @@ export namespace AgentConfig {
    * Input configuration for creating agents
    */
   export interface Input extends Base {
+    prompts_id?: string;
     graph: GraphConfig;
+  }
+
+  /**
+   * Input configuration with partial memory, mcp_servers and rag
+   * Useful for updates where these configurations are optional
+   */
+  export interface InputWithPartialConfig
+    extends Omit<Input, 'memory' | 'mcp_servers' | 'rag'> {
+    memory?: Partial<MemoryConfig>;
+    mcp_servers?: Record<string, any>;
+    rag?: Partial<RAGConfig>;
   }
 
   /**
@@ -159,6 +171,7 @@ export namespace AgentConfig {
    */
   export interface OutputWithId extends Input {
     id: string;
+    prompts_id: string;
     user_id: string;
   }
 

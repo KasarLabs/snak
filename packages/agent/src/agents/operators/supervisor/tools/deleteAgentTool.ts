@@ -1,5 +1,5 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { agents, redisAgents } from '@snakagent/database/queries';
+import { agents } from '@snakagent/database/queries';
 import { logger } from '@snakagent/core';
 import { AgentConfig } from '@snakagent/core';
 import { DeleteAgentSchema } from './schemas/deleteAgent.schema.js';
@@ -62,15 +62,6 @@ export function deleteAgentTool(
           });
         }
         logger.debug(`Agent ${deletedAgent.id} deleted from database`);
-
-        // Delete from Redis cache
-        try {
-          await redisAgents.deleteAgent(agent.id, userId);
-          logger.debug(`Agent ${agent.id} deleted from Redis`);
-        } catch (error) {
-          logger.error(`Failed to delete agent from Redis: ${error}`);
-          // Don't throw, PostgreSQL deletion is what matters
-        }
 
         logger.info(
           `Deleted agent "${agent.profile.name}" successfully for user ${userId}`

@@ -4,14 +4,14 @@ import { AgentType, SupervisorNode } from '../../shared/enums/agent.enum.js';
 import {
   ChunkOutput,
   ChunkOutputMetadata,
-} from '../../shared/types/streaming.types.js';
+} from '../../shared/types/streaming.type.js';
 import {
   createSupervisorGraph,
   SupervisorGraph,
 } from '@agents/graphs/core-graph/supervisor.graph.js';
 import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
-import { GraphErrorType, UserRequest } from '@stypes/graph.types.js';
+import { GraphErrorType, UserRequest } from '@stypes/graph.type.js';
 import { EventType } from '@enums/event.enums.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
 import { StateSnapshot } from '@langchain/langgraph';

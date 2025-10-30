@@ -1,4 +1,7 @@
-import { AgentConfig, MemoryStrategy } from '../../common/agent.js';
+import {
+  AgentConfig,
+  MemoryStrategy,
+} from '../../common/agent/interfaces/agent.interface.js';
 
 /**
  * Agent Selector Configuration
@@ -122,3 +125,48 @@ export const supervisorAgentConfig: AgentConfig.Input = {
 
   mcp_servers: {},
 };
+
+export namespace AgentConfigDefaults {
+  export const graph = {
+    max_steps: 50,
+    max_iterations: 50,
+    max_retries: 3,
+    execution_timeout_ms: 120000,
+    max_token_usage: 16000,
+    model: {
+      model_provider: 'gemini',
+      model_name: 'gemini-2.5-flash',
+      temperature: 0.7,
+      max_tokens: 8192,
+    },
+  };
+
+  export const memory = {
+    ltm_enabled: true,
+    strategy: MemoryStrategy.HOLISTIC,
+    size_limits: {
+      short_term_memory_size: 10,
+      max_insert_episodic_size: 20,
+      max_insert_semantic_size: 20,
+      max_retrieve_memory_size: 20,
+      limit_before_summarization: 10000,
+    },
+    thresholds: {
+      insert_semantic_threshold: 0.8,
+      insert_episodic_threshold: 0.75,
+      retrieve_memory_threshold: 0.4,
+      hitl_threshold: 0.85,
+    },
+    timeouts: {
+      retrieve_memory_timeout_ms: 20000,
+      insert_memory_timeout_ms: 10000,
+    },
+  };
+
+  export const rag = {
+    enabled: false,
+    top_k: 0,
+  };
+
+  export const mcp_servers = {};
+}

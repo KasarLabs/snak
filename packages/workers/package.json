@@ -33,7 +33,6 @@
     "ioredis": "^5.3.2",
     "mammoth": "^1.6.0",
     "pdfjs-dist": "^4.0.0",
-    "starknet": "^6.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

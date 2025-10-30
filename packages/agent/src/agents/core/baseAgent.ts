@@ -1,6 +1,5 @@
-import { IAgent } from '../../shared/types/agents.types.js';
 import { AgentType } from '@enums/agent.enum.js';
-import { ChunkOutput } from '../../shared/types/streaming.types.js';
+import { ChunkOutput } from '../../shared/types/streaming.type.js';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { CompiledStateGraph } from '@langchain/langgraph';
 import { logger, AgentConfig, DatabaseConfigService } from '@snakagent/core';
@@ -8,7 +7,7 @@ import { logger, AgentConfig, DatabaseConfigService } from '@snakagent/core';
 /**
  * Abstract base class for all agents
  */
-export abstract class BaseAgent implements IAgent {
+export abstract class BaseAgent {
   readonly id: string;
   readonly type: AgentType;
   readonly description: string;
