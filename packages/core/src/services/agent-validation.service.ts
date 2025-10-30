@@ -283,7 +283,7 @@ export class AgentValidationService {
         `Invalid model provider. Only '${allowedProvider}' is supported.`
       );
     }
-  
+
     // Validate model_name - REQUIRED
     if (!model.model_name) {
       throw new Error('Model name is required');
