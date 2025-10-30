@@ -78,7 +78,7 @@ export class MCP_CONTROLLER {
   public initializeConnections = async () => {
     try {
       await this.client.initializeConnections();
-      this.parseTools();
+      await this.parseTools();
       logger.info(`MCP connections initialized successfully`);
     } catch (error) {
       throw new Error(`Error initializing connections: ${error}`);
