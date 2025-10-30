@@ -189,7 +189,7 @@ export class SnakAgent extends BaseAgent {
       ls_model_type: chunk.metadata.ls_model_type,
       ls_temperature: chunk.metadata.ls_temperature,
       tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
-      user_request: user_request,
+      content: user_request,
       error: graphError,
       retry: retryCount,
     };
@@ -409,7 +409,7 @@ export class SnakAgent extends BaseAgent {
             error: graphError,
             final: true,
             is_human: isInterruptHandle,
-            user_request: request.request,
+            content: request.request,
           },
           timestamp: new Date().toISOString(),
         };

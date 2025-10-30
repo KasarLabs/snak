@@ -127,6 +127,11 @@ export class ErrorHandler {
       return await operation();
     } catch (error) {
       if (error instanceof ServerError) {
+        logger.error(`ServerError in ${context}:`, {
+          errorCode: error.errorCode,
+          message: error.message,
+          statusCode: error.statusCode
+        });
         client.emit(eventName, error);
         return;
       }

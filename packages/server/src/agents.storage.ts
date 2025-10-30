@@ -7,6 +7,7 @@ import { RedisClient } from '@snakagent/database/redis';
 import {
   AgentConfig,
   ModelConfig,
+  AgentPromptsInitialized,
   DEFAULT_AGENT_MODEL,
   AgentValidationService,
   DatabaseConfigService,
@@ -16,6 +17,10 @@ import DatabaseStorage from '../common/database/database.storage.js';
 import {
   AgentConfigResolver,
   SnakAgent,
+  TASK_EXECUTOR_SYSTEM_PROMPT,
+  TASK_MANAGER_SYSTEM_PROMPT,
+  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+  TASK_VERIFIER_SYSTEM_PROMPT,
   BaseAgent,
   SupervisorAgent,
 } from '@snakagent/agents';
@@ -191,11 +196,8 @@ export class AgentStorage implements OnModuleInit {
         `Failed to update cache with agent ${agentConfig.id}: ${error}`
       );
     }
-    return result;
-  }
 
-  public isInitialized(): boolean {
-    return this.initialized;
+    return agent;
   }
   /* ==================== PUBLIC CRUD OPERATIONS ==================== */
 
@@ -242,7 +244,6 @@ export class AgentStorage implements OnModuleInit {
       { ...agentConfig, user_id: userId },
       true
     );
-
     const newAgentDbRecord = await agents.insertAgentFromJson(
       userId,
       agentConfig
@@ -517,17 +518,14 @@ export class AgentStorage implements OnModuleInit {
       if (!modelInstance) {
         throw new Error('Failed to initialize model for SnakAgent');
       }
-      const promptsFromDb = await this.getPromptsFromDatabase(
-        agentConfigOutputWithId.prompts_id
-      );
-      if (!promptsFromDb) {
-        throw new Error(
-          `Failed to load prompts for agent ${agentConfigOutputWithId.id}, prompts ID: ${agentConfigOutputWithId.prompts_id}`
-        );
-      }
       const AgentConfigRuntime: AgentConfig.Runtime = {
         ...agentConfigOutputWithId,
-        prompts: promptsFromDb,
+        prompts: {
+          task_executor_prompt: TASK_EXECUTOR_SYSTEM_PROMPT,
+          task_manager_prompt: TASK_MANAGER_SYSTEM_PROMPT,
+          task_memory_manager_prompt: TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+          task_verifier_prompt: TASK_VERIFIER_SYSTEM_PROMPT,
+        },
         graph: {
           ...agentConfigOutputWithId.graph,
           model: modelInstance,
@@ -586,17 +584,14 @@ export class AgentStorage implements OnModuleInit {
     if (!modelInstance) {
       throw new Error('Failed to initialize model for SnakAgent');
     }
-    const promptsFromDb = await this.getPromptsFromDatabase(
-      canonical.prompts_id
-    );
-    if (!promptsFromDb) {
-      throw new Error(
-        `Failed to load prompts for agent ${canonical.id}, prompts ID: ${canonical.prompts_id}`
-      );
-    }
     return {
       ...canonical,
-      prompts: promptsFromDb,
+      prompts: {
+        task_executor_prompt: TASK_EXECUTOR_SYSTEM_PROMPT,
+        task_manager_prompt: TASK_MANAGER_SYSTEM_PROMPT,
+        task_memory_manager_prompt: TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+        task_verifier_prompt: TASK_VERIFIER_SYSTEM_PROMPT,
+      },
       graph: {
         ...canonical.graph,
         model: modelInstance,
@@ -611,7 +606,7 @@ export class AgentStorage implements OnModuleInit {
   ): Promise<BaseAgent> {
     try {
       const AgentConfigRuntime =
-        await createAgentConfigRuntimeFromOutputWithId(agentConfig);
+        await this.createAgentConfigRuntimeFromOutputWithId(agentConfig);
       if (!AgentConfigRuntime) {
         throw new Error(
           `Failed to create runtime config for agent ${agentConfig.id}`
@@ -631,6 +626,7 @@ export class AgentStorage implements OnModuleInit {
       throw error;
     }
   }
+
   /**
    * Validate agent configuration
    * @param agentConfig - Agent configuration to validate

@@ -201,15 +201,13 @@ BEGIN
         NEW.mcp_servers,
         NEW.graph,
         NEW.memory,
-        NEW.rag,
-        NEW.prompts_id
+        NEW.rag
     ) IS DISTINCT FROM ROW(
         OLD.profile,
         OLD.mcp_servers,
         OLD.graph,
         OLD.memory,
-        OLD.rag,
-        OLD.prompts_id
+        OLD.rag
     ) THEN
         NEW.cfg_version := COALESCE(OLD.cfg_version, 0) + 1;
     ELSE

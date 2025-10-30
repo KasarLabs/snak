@@ -44,7 +44,11 @@ export class MessageRequest {
   @Length(1, 10000)
   content: string;
 
-  @IsOptional()
+  @IsNotEmpty()
+  @IsString()
+  @IsUUID()
+  thread_id: string;
+
   @IsInt()
   @Min(0)
   @Max(1)
@@ -55,6 +59,10 @@ export class Message {
   @IsString()
   @IsUUID()
   agent_id: string;
+
+  @IsString()
+  @IsUUID()
+  thread_id: string;
 
   @IsNotEmpty()
   @IsString()

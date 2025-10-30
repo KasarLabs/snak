@@ -41,12 +41,8 @@ export class AgentService {
       let result: any;
 
       const user_request: UserRequest = {
-<<<<<<< HEAD
-        request: userRequest.request || '',
-        thread_id: userRequest.thread_id || undefined,
-=======
         request: userRequest.content || '',
->>>>>>> main
+        thread_id: userRequest.thread_id || undefined,
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 
@@ -136,12 +132,8 @@ export class AgentService {
     });
     try {
       const user_request: UserRequest = {
-<<<<<<< HEAD
-        request: userRequest.request || '',
-        thread_id: userRequest.thread_id || undefined,
-=======
         request: userRequest.content || '',
->>>>>>> main
+        thread_id: userRequest.thread_id || undefined,
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 

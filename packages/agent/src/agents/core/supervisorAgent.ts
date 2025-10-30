@@ -82,7 +82,7 @@ export class SupervisorAgent extends BaseAgent {
       ls_model_type: chunk.metadata.ls_model_type,
       ls_temperature: chunk.metadata.ls_temperature,
       tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
-      user_request: user_request,
+      content: user_request,
       error: graphError,
       retry: retryCount,
     };
@@ -265,7 +265,7 @@ export class SupervisorAgent extends BaseAgent {
           error: undefined,
           final: true,
           is_human: isInterruptHandle,
-          user_request: request.request,
+          content: request.request,
           transfer_to: isTransferHandle
             ? stateSnapshot.values.transfer_to
             : null,

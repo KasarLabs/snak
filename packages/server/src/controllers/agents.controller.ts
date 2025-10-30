@@ -289,10 +289,15 @@ export class AgentsController {
     if (!agent) {
       throw new ServerError('E01TA400');
     }
+    // Validate content is not empty
+    if (!userRequest.request.content || userRequest.request.content.trim().length === 0) {
+      throw new ServerError('E04TA120'); // Invalid request format
+    }
+
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
       thread_id: userRequest.request.thread_id,
-      request: userRequest.request.content ?? '',
+      content: userRequest.request.content,
     };
 
     if (messageRequest.thread_id) {

@@ -58,8 +58,20 @@ export class MyGateway {
           throw new WsException('Socket connection is invalid or disconnected');
         }
         logger.info('handleUserRequest called');
+        logger.debug('Request payload:', {
+          agent_id: userRequest.request.agent_id,
+          thread_id: userRequest.request.thread_id,
+          content: userRequest.request.content,
+          content_length: userRequest.request.content?.length ?? 0
+        });
         const userId = ControllerHelpers.getUserIdFromSocket(client);
         let agent: BaseAgent | undefined;
+
+        // Validate content is not empty
+        if (!userRequest.request.content || userRequest.request.content.trim().length === 0) {
+          logger.warn('Request validation failed: empty content');
+          throw new ServerError('E04TA120'); // Invalid request format
+        }
 
         agent = await this.agentFactory.getAgentInstance(
           userRequest.request.agent_id,

@@ -315,7 +315,6 @@ export class AgentCfgOutboxWorker {
         user_id: agent.user_id,
         profile: agent.profile,
         mcp_servers: agent.mcp_servers,
-        prompts_id: agent.prompts_id,
         graph: agent.graph,
         memory: agent.memory,
         rag: agent.rag,

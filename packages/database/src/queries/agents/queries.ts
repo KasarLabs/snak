@@ -6,6 +6,7 @@ import {
   McpServerConfig,
   logger,
   AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS,
+  ModelConfig,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '../../database.js';
@@ -268,7 +269,6 @@ export namespace agents {
             user_id,
             row_to_json(profile)        AS profile,
             mcp_servers,
-            prompts_id,
             row_to_json(graph)          AS graph,
             row_to_json(memory)         AS memory,
             row_to_json(rag)            AS rag,

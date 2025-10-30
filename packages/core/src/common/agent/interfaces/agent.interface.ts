@@ -143,7 +143,6 @@ export namespace AgentConfig {
    * Input configuration for creating agents
    */
   export interface Input extends Base {
-    prompts_id?: string;
     graph: GraphConfig;
   }
 
@@ -171,7 +170,6 @@ export namespace AgentConfig {
    */
   export interface OutputWithId extends Input {
     id: string;
-    prompts_id: string;
     user_id: string;
   }
 
