@@ -9,12 +9,27 @@ import { AgentStorage } from '../agents.storage.js';
 import { McpController } from '../controllers/mcp.controller.js';
 
 import { SupervisorService } from '../services/supervisor.service.js';
+import AgentRuntimeManager from '../services/agent-runtime.manager.js';
+import { AgentRuntimeOrchestrator } from '../services/agent-runtime.orchestrator.js';
 
 @Module({
   imports: [ConfigModule],
-  providers: [DatabaseService, AgentService, AgentStorage, SupervisorService],
+  providers: [
+    DatabaseService,
+    AgentService,
+    AgentStorage,
+    SupervisorService,
+    AgentRuntimeManager,
+    AgentRuntimeOrchestrator,
+  ],
   controllers: [AgentsController, MetricsController, McpController],
 
-  exports: [DatabaseService, AgentService, AgentStorage, SupervisorService],
+  exports: [
+    DatabaseService,
+    AgentService,
+    AgentStorage,
+    SupervisorService,
+    AgentRuntimeManager,
+  ],
 })
 export class AgentsModule {}

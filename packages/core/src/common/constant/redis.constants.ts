@@ -1,0 +1,3 @@
+export const DEFAULT_AGENT_CFG_REDIS_CHANNEL = 'agent_cfg_invalidate';
+export const AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS = 300;
+export const AGENT_CFG_OUTBOX_CLAIM_RETRY_WINDOW_SECONDS = 300;
