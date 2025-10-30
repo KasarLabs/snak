@@ -1,11 +1,3 @@
-export interface ApiKeys {
-  openai?: string;
-  anthropic?: string;
-  gemini?: string;
-  deepseek?: string;
-  [providerName: string]: string | undefined;
-}
-
 export const logger = {
   warn: (..._args: unknown[]): void => {
     void _args;

@@ -1,5 +1,5 @@
 import { getGuardValue } from './guards.service.js';
-import { AgentConfig } from '../common/agent.js';
+import { AgentConfig } from '../common/agent/interfaces/agent.interface.js';
 import logger from '../logger/logger.js';
 
 /**
@@ -267,47 +267,31 @@ export class AgentValidationService {
    */
   private validateModelConfig(model: any): void {
     // Load guard values once for performance
-    const providerMaxLength = getGuardValue(
-      'agents.graph.model.provider_max_length'
+    const allowedProvider = getGuardValue(
+      'agents.graph.model.allowed_provider'
     );
-    const providerMinLength = getGuardValue(
-      'agents.graph.model.provider_min_length'
-    );
-    const modelNameMaxLength = getGuardValue(
-      'agents.graph.model.model_name_max_length'
-    );
-    const modelNameMinLength = getGuardValue(
-      'agents.graph.model.model_name_min_length'
-    );
+    const allowedModels = getGuardValue('agents.graph.model.allowed_models');
     const maxTemperature = getGuardValue('agents.graph.model.max_temperature');
     const maxTokens = getGuardValue('agents.graph.model.max_tokens');
 
-    // Validate provider
-    if (model.provider) {
-      if (model.provider.length > providerMaxLength) {
-        throw new Error(
-          `Model provider too long. Maximum length: ${providerMaxLength}`
-        );
-      }
-      if (model.provider.length < providerMinLength) {
-        throw new Error(
-          `Model provider too short. Minimum length: ${providerMinLength}`
-        );
-      }
+    // Validate provider - REQUIRED
+    if (!model.provider) {
+      throw new Error('Model provider is required');
+    }
+    if (model.provider.toLowerCase() !== allowedProvider.toLowerCase()) {
+      throw new Error(
+        `Invalid model provider. Only '${allowedProvider}' is supported.`
+      );
     }
 
-    // Validate model_name
-    if (model.model_name) {
-      if (model.model_name.length > modelNameMaxLength) {
-        throw new Error(
-          `Model name too long. Maximum length: ${modelNameMaxLength}`
-        );
-      }
-      if (model.model_name.length < modelNameMinLength) {
-        throw new Error(
-          `Model name too short. Minimum length: ${modelNameMinLength}`
-        );
-      }
+    // Validate model_name - REQUIRED
+    if (!model.model_name) {
+      throw new Error('Model name is required');
+    }
+    if (!allowedModels.includes(model.model_name)) {
+      throw new Error(
+        `Invalid model name. Supported models: ${allowedModels.join(', ')}`
+      );
     }
 
     // Validate temperature

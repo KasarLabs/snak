@@ -34,11 +34,11 @@ import { GraphError } from '../utils/error.utils.js';
 import {
   TASK_VERIFICATION_CONTEXT_PROMPT,
   TASK_VERIFIER_SYSTEM_PROMPT,
-} from '@prompts/agents/task-verifier.prompts.js';
+} from '@prompts/agents/snak/core/task-verifier.prompts.js';
 import {
   TaskVerificationSchema,
   TaskVerificationSchemaType,
-} from '@schemas/graph.schemas.js';
+} from '@schemas/graph.schema.js';
 import { formatSTMToXML } from '../parser/memory/stm-parser.js';
 
 export class TaskVerifierGraph {

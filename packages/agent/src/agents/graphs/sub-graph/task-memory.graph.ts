@@ -6,7 +6,7 @@ import {
   ltmSchemaType,
   createLtmSchemaMemorySchema,
   HolisticMemoryContext,
-} from '../../../shared/types/memory.types.js';
+} from '../../../shared/types/memory.type.js';
 import {
   getCurrentTask,
   getRetrieveMemoryRequestFromGraph,
@@ -43,12 +43,12 @@ import {
   StepType,
   TaskType,
   ToolCallType,
-} from '../../../shared/types/graph.types.js';
+} from '../../../shared/types/graph.type.js';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   TASK_MEMORY_MANAGER_HUMAN_PROMPT,
   TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-} from '@prompts/agents/task-memory-manager.prompt.js';
+} from '@prompts/agents/snak/core/task-memory-manager.prompt.js';
 import { memory } from '@snakagent/database/queries';
 import { EXECUTOR_CORE_TOOLS } from './task-executor.graph.js';
 import { GraphError } from '../utils/error.utils.js';

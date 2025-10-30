@@ -33,22 +33,14 @@ import {
   AgentDeletesRequestDTO,
   getMessagesFromAgentsDTO,
   MessageRequest,
-  MemoryStrategy,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { FastifyRequest } from 'fastify';
-import { Postgres } from '@snakagent/database';
-import { SnakAgent, SupervisorAgent, BaseAgent } from '@snakagent/agents';
+import { BaseAgent } from '@snakagent/agents';
 import { notify, message, agents } from '@snakagent/database/queries';
 
 import { supervisorAgentConfig } from '@snakagent/core';
-
-export interface SupervisorRequestDTO {
-  request: {
-    content: string;
-    agent_id?: string;
-  };
-}
+import { initializeAgentConfigIfMissingParams } from '../utils/agents.utils.js';
 
 export interface AgentAvatarResponseDTO {
   id: string;
@@ -287,43 +279,20 @@ export class AgentsController {
 
     const route = this.reflector.get('path', this.handleUserRequest);
     let agent: BaseAgent | undefined = undefined;
-    if (userRequest.request.agent_id === undefined) {
-      logger.info(
-        'Agent ID not provided in request, Using agent Selector to select agent'
-      );
 
-      if (
-        !userRequest.request.content ||
-        userRequest.request.content?.length === 0
-      ) {
-        throw new ServerError('E01TA400'); // Bad request if no content
-      }
-      const agentSelector = this.agentFactory.getAgentSelector();
-      agent = await agentSelector.execute(userRequest.request.content, false, {
-        userId,
-      });
-      if (agent) {
-        const agentId = agent.getAgentConfig().id;
-        await ControllerHelpers.verifyAgentConfigOwnership(
-          this.agentFactory,
-          agentId,
-          userId
-        );
-      }
-    } else {
-      agent = await ControllerHelpers.verifyAgentOwnership(
-        this.agentFactory,
-        userRequest.request.agent_id,
-        userId
-      );
-    }
+    agent = await ControllerHelpers.verifyAgentOwnership(
+      this.agentFactory,
+      userRequest.request.agent_id,
+      userId
+    );
+
     if (!agent) {
       throw new ServerError('E01TA400');
     }
 
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
-      request: userRequest.request.content ?? '',
+      content: userRequest.request.content ?? '',
     };
 
     const action = this.agentService.handleUserRequest(
@@ -376,11 +345,15 @@ export class AgentsController {
   ): Promise<AgentResponse> {
     logger.info('init_agent called');
     const userId = ControllerHelpers.getUserId(req);
-
-    this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
+    const agentConfigurationNormalized = initializeAgentConfigIfMissingParams(
+      userRequest.agent
+    );
+    this.supervisorService.validateNotSupervisorAgent(
+      agentConfigurationNormalized
+    );
 
     const newAgentConfig = await this.agentFactory.addAgent(
-      userRequest.agent,
+      agentConfigurationNormalized,
       userId
     );
 

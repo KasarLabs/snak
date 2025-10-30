@@ -31,7 +31,7 @@ import {
   HITL_CONSTRAINT_LEVEL_2,
   HITL_CONSTRAINT_LEVEL_3,
   HITL_CONSTRAINT_LEVEL_4,
-} from '@prompts/agents/hitl-contraint.prompt.js';
+} from '@prompts/agents/snak/hitl/hitl-constraint.prompt.js';
 // --- Response Generators ---
 export function createMaxIterationsResponse<T>(
   graph_step: number,

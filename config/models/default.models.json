@@ -1,21 +1,21 @@
 {
   "fast": {
-    "provider": "openai",
-    "model_name": "gpt-4o-mini",
+    "provider": "google-genai",
+    "model_name": "gemini-2.5-flash",
     "description": "Optimized for speed and simple tasks.",
     "max_input_tokens": 0,
     "max_output_tokens": 0
   },
   "smart": {
-    "provider": "anthropic",
-    "model_name": "claude-3-5-sonnet-latest",
+    "provider": "google-genai",
+    "model_name": "gemini-2.5-flash",
     "description": "Optimized for complex reasoning.",
     "max_input_tokens": 0,
     "max_output_tokens": 0
   },
   "cheap": {
-    "provider": "openai",
-    "model_name": "gpt-4o-mini",
+    "provider": "google-genai",
+    "model_name": "gemini-2.5-flash",
     "description": "Good cost-performance balance.",
     "max_input_tokens": 0,
     "max_output_tokens": 0

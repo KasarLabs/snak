@@ -7,7 +7,6 @@ import { RedisClient } from '@snakagent/database/redis';
 import {
   AgentConfig,
   ModelConfig,
-  StarknetConfig,
   AgentPromptsInitialized,
   DEFAULT_AGENT_MODEL,
   AgentValidationService,
@@ -16,7 +15,6 @@ import {
 // Add this import if ModelSelectorConfig is exported from @snakagent/core
 import DatabaseStorage from '../common/database/database.storage.js';
 import {
-  AgentSelector,
   AgentConfigResolver,
   SnakAgent,
   TASK_EXECUTOR_SYSTEM_PROMPT,
@@ -39,7 +37,6 @@ type CanonicalAgentConfig = NonNullable<
 
 @Injectable()
 export class AgentStorage implements OnModuleInit {
-  private agentSelector: AgentSelector;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
   private agentValidationService: AgentValidationService;
@@ -202,60 +199,6 @@ export class AgentStorage implements OnModuleInit {
 
     return agent;
   }
-
-  private async createAgentFromRuntime(
-    runtime: AgentConfig.Runtime
-  ): Promise<BaseAgent> {
-    const starknetConfig: StarknetConfig = {
-      provider: this.config.starknet.provider,
-      accountPrivateKey: this.config.starknet.privateKey,
-      accountPublicKey: this.config.starknet.publicKey,
-    };
-
-    if (this.supervisorService.isSupervisorConfig(runtime)) {
-      const supervisorAgent = new SupervisorAgent(runtime);
-      await supervisorAgent.init();
-      return supervisorAgent;
-    }
-
-    const snakAgent = new SnakAgent(starknetConfig, runtime);
-    await snakAgent.init();
-    return snakAgent;
-  }
-
-  public getAgentSelector(): AgentSelector {
-    if (!this.agentSelector) {
-      throw new Error('AgentSelector is not initialized');
-    }
-    return this.agentSelector;
-  }
-
-  public async getModelFromUser(userId: string): Promise<ModelConfig> {
-    if (!userId || userId.length === 0) {
-      throw new Error('User ID is required to fetch model configuration');
-    }
-    const result = await agents.getModelFromUser(userId);
-    if (!result) {
-      await agents.createModelConfig(
-        userId,
-        DEFAULT_AGENT_MODEL.provider,
-        DEFAULT_AGENT_MODEL.model_name,
-        DEFAULT_AGENT_MODEL.temperature,
-        DEFAULT_AGENT_MODEL.max_tokens
-      );
-      const new_r = await agents.getModelFromUser(userId);
-      if (!new_r) {
-        throw new Error(`No user found with ID: ${userId}`);
-      }
-      return new_r;
-    }
-    return result;
-  }
-
-  public isInitialized(): boolean {
-    return this.initialized;
-  }
-
   /* ==================== PUBLIC CRUD OPERATIONS ==================== */
 
   /**
@@ -573,10 +516,9 @@ export class AgentStorage implements OnModuleInit {
     agentConfigOutputWithId: AgentConfig.OutputWithId
   ): Promise<AgentConfig.Runtime | undefined> {
     try {
-      const model = await this.getModelFromUser(
-        agentConfigOutputWithId.user_id
+      const modelInstance = initializeModels(
+        agentConfigOutputWithId.graph.model
       );
-      const modelInstance = initializeModels(model);
       if (!modelInstance) {
         throw new Error('Failed to initialize model for SnakAgent');
       }
@@ -645,8 +587,7 @@ export class AgentStorage implements OnModuleInit {
   private async instantiateRuntimeFromCanonical(
     canonical: CanonicalAgentConfig
   ): Promise<AgentConfig.Runtime> {
-    const model = await this.getModelFromUser(canonical.user_id);
-    const modelInstance = initializeModels(model);
+    const modelInstance = initializeModels(canonical.graph.model);
     if (!modelInstance) {
       throw new Error('Failed to initialize model for SnakAgent');
     }
@@ -674,11 +615,6 @@ export class AgentStorage implements OnModuleInit {
     agentConfig: AgentConfig.OutputWithId
   ): Promise<BaseAgent> {
     try {
-      const starknetConfig: StarknetConfig = {
-        provider: this.config.starknet.provider,
-        accountPrivateKey: this.config.starknet.privateKey,
-        accountPublicKey: this.config.starknet.publicKey,
-      };
       const AgentConfigRuntime =
         await this.createAgentConfigRuntimeFromOutputWithId(agentConfig);
       if (!AgentConfigRuntime) {
@@ -691,7 +627,7 @@ export class AgentStorage implements OnModuleInit {
         await supervisorAgent.init();
         return supervisorAgent;
       }
-      const snakAgent = new SnakAgent(starknetConfig, AgentConfigRuntime);
+      const snakAgent = new SnakAgent(AgentConfigRuntime);
       await snakAgent.init();
 
       return snakAgent;

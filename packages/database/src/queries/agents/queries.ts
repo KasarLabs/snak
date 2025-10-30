@@ -4,6 +4,7 @@ import {
   AgentConfig,
   AgentProfile,
   McpServerConfig,
+  ModelConfig,
   logger,
   AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS,
 } from '@snakagent/core';
@@ -58,17 +59,6 @@ export namespace agents {
     id: string;
     avatar_mime_type: string;
   }
-
-  /**
-   * Model configuration data
-   */
-  export interface ModelConfig {
-    provider: string;
-    model_name: string;
-    temperature: number;
-    max_tokens: number;
-  }
-
   /**
    * Prompts data
    */

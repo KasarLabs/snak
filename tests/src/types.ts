@@ -7,7 +7,7 @@ export interface SnakConfig {
 export interface AgentRequest {
   request: {
     content: string;
-    agent_id?: string;
+    agent_id: string;
   };
 }
 

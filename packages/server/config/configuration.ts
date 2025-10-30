@@ -1,16 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RpcProvider } from 'starknet';
 import { envSchema, type EnvConfig } from './env.validation.js';
 import { RagConfigSize } from '@snakagent/core'; // Assuming core exports these types
-import { readFileSync } from 'fs';
 
 @Injectable()
 export class ConfigurationService {
   private readonly logger = new Logger(ConfigurationService.name);
   private readonly config: EnvConfig;
   private readonly ragConfig: RagConfigSize;
-  private readonly ragConfigPath: string;
 
   constructor(private configService: ConfigService) {
     // Collect all env variables specified in the schema
@@ -18,21 +15,19 @@ export class ConfigurationService {
       NODE_ENV: this.configService.get<string>('NODE_ENV'),
       SERVER_PORT: this.configService.get<string>('SERVER_PORT'),
       SERVER_API_KEY: this.configService.get<string>('SERVER_API_KEY'),
-      STARKNET_PRIVATE_KEY: this.configService.get<string>(
-        'STARKNET_PRIVATE_KEY'
-      ),
-      STARKNET_PUBLIC_ADDRESS: this.configService.get<string>(
-        'STARKNET_PUBLIC_ADDRESS'
-      ),
-      STARKNET_RPC_URL: this.configService.get<string>('STARKNET_RPC_URL'),
       AI_MODEL_LEVEL: this.configService.get<string>('AI_MODEL_LEVEL'),
       AI_MODELS_CONFIG_PATH: this.configService.get<string>(
         'AI_MODELS_CONFIG_PATH'
       ),
-      OPENAI_API_KEY: this.configService.get<string>('OPENAI_API_KEY'),
-      ANTHROPIC_API_KEY: this.configService.get<string>('ANTHROPIC_API_KEY'),
       GEMINI_API_KEY: this.configService.get<string>('GEMINI_API_KEY'),
-      DEEPSEEK_API_KEY: this.configService.get<string>('DEEPSEEK_API_KEY'),
+      SMITHERY_API_KEY: this.configService.get<string>('SMITHERY_API_KEY'),
+      DEFAULT_MODEL_PROVIDER: this.configService.get<string>(
+        'DEFAULT_MODEL_PROVIDER'
+      ),
+      DEFAULT_MODEL_NAME: this.configService.get<string>('DEFAULT_MODEL_NAME'),
+      DEFAULT_TEMPERATURE: this.configService.get<number>(
+        'DEFAULT_TEMPERATURE'
+      ),
       GUARDS_CONFIG_PATH: this.configService.get<string>('GUARDS_CONFIG_PATH'),
       REDIS_HOST: this.configService.get<string>('REDIS_HOST'),
       REDIS_PORT: this.configService.get<string>('REDIS_PORT'),
@@ -44,11 +39,26 @@ export class ConfigurationService {
     const result = envSchema.safeParse(envVariables);
 
     if (!result.success) {
-      this.logger.error(
-        ' Invalid environment variables:',
-        JSON.stringify(result.error.format(), null, 2)
+      // Format validation errors in a user-friendly way
+      const errors = result.error.format() as any;
+      const errorMessages: string[] = [];
+
+      Object.keys(errors).forEach((key) => {
+        if (key !== '_errors' && errors[key]?._errors?.length > 0) {
+          const errorList = errors[key]._errors.join(', ');
+          errorMessages.push(`  - ${key}: ${errorList}`);
+        }
+      });
+
+      const formattedError =
+        errorMessages.length > 0
+          ? `\n\nMissing or invalid environment variables:\n${errorMessages.join('\n')}\n\nPlease check your .env file and ensure all required variables are set.\n`
+          : JSON.stringify(errors, null, 2);
+
+      this.logger.error(formattedError);
+      throw new Error(
+        'Invalid environment variables. Check logs above for details.'
       );
-      throw new Error('Invalid environment variables');
     }
 
     this.config = result.data;
@@ -80,13 +90,6 @@ export class ConfigurationService {
     return this.config.SERVER_API_KEY;
   }
 
-  get starknet() {
-    return {
-      privateKey: this.config.STARKNET_PRIVATE_KEY,
-      publicKey: this.config.STARKNET_PUBLIC_ADDRESS,
-      provider: new RpcProvider({ nodeUrl: this.config.STARKNET_RPC_URL }),
-    };
-  }
   get rag() {
     return this.ragConfig;
   }
@@ -115,6 +118,22 @@ export class ConfigurationService {
       port,
       password: REDIS_PASSWORD || '',
       db,
+    };
+  }
+
+  get geminiApiKey(): string {
+    return this.config.GEMINI_API_KEY;
+  }
+
+  get smitheryApiKey(): string {
+    return this.config.SMITHERY_API_KEY;
+  }
+
+  get defaultModel() {
+    return {
+      provider: this.config.DEFAULT_MODEL_PROVIDER,
+      name: this.config.DEFAULT_MODEL_NAME,
+      temperature: this.config.DEFAULT_TEMPERATURE,
     };
   }
 }

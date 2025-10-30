@@ -37,7 +37,7 @@ import {
   STRING_LIMITS,
 } from '../constants/execution-constants.js';
 import { v4 as uuidv4 } from 'uuid';
-import { ThoughtsSchemaType } from '@schemas/graph.schemas.js';
+import { ThoughtsSchemaType } from '@schemas/graph.schema.js';
 import {
   TaskType,
   Memories,
@@ -54,7 +54,7 @@ import {
   TASK_EXECUTOR_MEMORY_LONG_TERM_MEMORY_PROMPT,
   TASK_EXECUTOR_MEMORY_RAG_PROMPT,
   TASK_EXECUTOR_SYSTEM_PROMPT,
-} from '@prompts/agents/task-executor.prompt.js';
+} from '@prompts/agents/snak/core/task-executor.prompt.js';
 import { TaskExecutorToolRegistry } from '../tools/task-executor.tools.js';
 import { GraphError } from '../utils/error.utils.js';
 

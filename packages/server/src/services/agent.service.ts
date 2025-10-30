@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import {
-  IAgentService,
-  AgentExecutionResponse,
-} from '../interfaces/agent-service.interface.js';
-import { IAgent } from '../interfaces/agent.interface.js';
+import { AgentExecutionResponse } from '../interfaces/agent-service.interface.js';
 import {
   AgentConfig,
   MessageFromAgentIdDTO,
@@ -16,7 +12,6 @@ import {
   AgentExecutionError,
 } from '../../common/errors/agent.errors.js';
 import { ConfigurationService } from '../../config/configuration.js';
-import { StarknetTransactionError } from '../../common/errors/starknet.errors.js';
 import {
   BaseAgent,
   ChunkOutput,
@@ -28,7 +23,7 @@ import { agents, redisAgents } from '@snakagent/database/queries';
 import { message } from '@snakagent/database/queries';
 
 @Injectable()
-export class AgentService implements IAgentService {
+export class AgentService {
   private readonly logger = new Logger(AgentService.name);
 
   constructor(private readonly config: ConfigurationService) {}
@@ -40,13 +35,13 @@ export class AgentService implements IAgentService {
   ): Promise<AgentExecutionResponse> {
     this.logger.debug({
       message: 'Processing agent request',
-      request: userRequest.request,
+      request: userRequest.content,
     });
     try {
       let result: any;
 
       const user_request: UserRequest = {
-        request: userRequest.request || '',
+        request: userRequest.content || '',
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 
@@ -112,20 +107,12 @@ export class AgentService implements IAgentService {
           name: error.name,
           stack: error.stack,
         },
-        request: userRequest.request,
+        request: userRequest.content,
       });
 
       if (error instanceof AgentValidationError) {
         throw error;
       }
-
-      if (error.message?.includes('transaction')) {
-        throw new StarknetTransactionError('Failed to execute transaction', {
-          originalError: error.message,
-          cause: error,
-        });
-      }
-
       throw new AgentExecutionError('Failed to process agent request', {
         originalError: error.message,
         cause: error,
@@ -140,11 +127,11 @@ export class AgentService implements IAgentService {
   ): AsyncGenerator<ChunkOutput> {
     this.logger.debug({
       message: 'Processing agent request',
-      request: userRequest.request,
+      request: userRequest.content,
     });
     try {
       const user_request: UserRequest = {
-        request: userRequest.request || '',
+        request: userRequest.content || '',
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 
@@ -175,13 +162,6 @@ export class AgentService implements IAgentService {
 
       if (error instanceof AgentValidationError) {
         throw error;
-      }
-
-      if (error.message?.includes('transaction')) {
-        throw new StarknetTransactionError('Failed to execute transaction', {
-          originalError: error.message,
-          cause: error,
-        });
       }
 
       throw new AgentExecutionError('Failed to process agent request', {
@@ -262,31 +242,6 @@ export class AgentService implements IAgentService {
     } catch (error) {
       this.logger.error(error);
       throw error;
-    }
-  }
-
-  async getAgentStatus(agent: IAgent): Promise<{
-    isReady: boolean;
-    walletConnected: boolean;
-    apiKeyValid: boolean;
-  }> {
-    try {
-      const credentials = agent.getAccountCredentials();
-
-      // Check if the AI provider API keys are configured
-      let apiKeyValid = true; // TODO add actual check for API key validity on the agent model
-      return {
-        isReady: Boolean(credentials && apiKeyValid),
-        walletConnected: Boolean(credentials.accountPrivateKey),
-        apiKeyValid,
-      };
-    } catch (error) {
-      this.logger.error('Error checking agent status', error);
-      return {
-        isReady: false,
-        walletConnected: false,
-        apiKeyValid: false,
-      };
     }
   }
 }

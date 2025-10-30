@@ -8,7 +8,6 @@ networks:
     driver: bridge
 
 services:
-
   postgres:
     image: pgvector/pgvector:pg17
     container_name: 'postgresql'
@@ -42,9 +41,23 @@ services:
       - redis_data:/data
     env_file:
       - .env
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--requirepass',
+        '${REDIS_PASSWORD:?REDIS_PASSWORD is required}',
+      ]
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}", "ping"]
+      test:
+        [
+          'CMD',
+          'redis-cli',
+          '-a',
+          '${REDIS_PASSWORD:?REDIS_PASSWORD is required}',
+          'ping',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -77,57 +90,57 @@ services:
       - --api.dashboard=true
       - --log.level="DEBUG"
     ports:
-      - "443:443"
-      - "8081:8080" # dashboard
+      - '443:443'
+      - '8081:8080' # dashboard
     volumes:
       - ./keycloak/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
       - ./keycloak/traefik/certs:/certs:ro
     networks: [snaknet]
 
-  kc_postgres:
-    image: postgres:15
-    container_name: kc_postgres
-    restart: always
-    env_file:
-      - keycloak/.env.keycloak
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 3s
-      retries: 30
-    volumes:
-      - kc_postgres_data:/var/lib/postgresql/data
-    networks: [snaknet]
+  # kc_postgres:
+  #   image: postgres:15
+  #   container_name: kc_postgres
+  #   restart: always
+  #   env_file:
+  #     - keycloak/.env.keycloak
+  #   healthcheck:
+  #     test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 30
+  #   volumes:
+  #     - kc_postgres_data:/var/lib/postgresql/data
+  #   networks: [snaknet]
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.0.2
-    container_name: keycloak
-    command: ["start", "--import-realm"]
-    restart: always
-    depends_on:
-      kc_postgres:
-        condition: service_healthy
-    volumes:
-      - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
-    env_file:
-      - keycloak/.env.keycloak
-    networks: [snaknet]
-    ports: 
-      - "8080:8080"
-      - "9000:9000"
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:26.0.2
+  #   container_name: keycloak
+  #   command: ["start", "--import-realm"]
+  #   restart: always
+  #   depends_on:
+  #     kc_postgres:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+  #   env_file:
+  #     - keycloak/.env.keycloak
+  #   networks: [snaknet]
+  #   ports:
+  #     - "8080:8080"
+  #     - "9000:9000"
 
-  oauth2-proxy:
-    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
-    container_name: oauth2_proxy
-    restart: always
-    depends_on:
-      - keycloak
-    env_file:
-      - keycloak/.env.keycloak
-    networks: [snaknet]
-    ports: 
-      - "4180:4180"
-      - "44180:44180"
+  # oauth2-proxy:
+  #   image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+  #   container_name: oauth2_proxy
+  #   restart: always
+  #   depends_on:
+  #     - keycloak
+  #   env_file:
+  #     - keycloak/.env.keycloak
+  #   networks: [snaknet]
+  #   ports:
+  #     - "4180:4180"
+  #     - "44180:44180"
 
   # snak-frontend:
   #   build:
@@ -151,21 +164,20 @@ services:
   #   ports:
   #     - '3001:3001'
 
-  snak-frontend:
-    image: ghcr.io/kasarlabs/snak-app/snak-frontend:latest
-    container_name: 'snak-frontend'
-    env_file:
-      - .env.snak-frontend
-    networks: [snaknet]
-    ports:
-      - '3000:3000'
+  # snak-frontend:
+  #   image: ghcr.io/kasarlabs/snak-app/snak-frontend:latest
+  #   container_name: 'snak-frontend'
+  #   env_file:
+  #     - .env.snak-frontend
+  #   networks: [snaknet]
+  #   ports:
+  #     - '3000:3000'
 
-  snak-bff:
-    image: ghcr.io/kasarlabs/snak-app/snak-bff:latest
-    container_name: 'snak-bff'
-    env_file:
-      - .env.snak-bff
-    networks: [snaknet]
-    ports:
-      - '3001:3001'
-
+  # snak-bff:
+  #   image: ghcr.io/kasarlabs/snak-app/snak-bff:latest
+  #   container_name: 'snak-bff'
+  #   env_file:
+  #     - .env.snak-bff
+  #   networks: [snaknet]
+  #   ports:
+  #     - '3001:3001'

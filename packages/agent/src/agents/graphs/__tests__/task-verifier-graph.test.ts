@@ -3,7 +3,7 @@
 // import { ModelSelector } from '../../operators/modelSelector.js';
 // import { GraphState, GraphConfigurableAnnotation } from '../graph.js';
 // import { TaskVerifierNode } from '../../../shared/enums/agent-modes.enum.js';
-// import { TaskType } from '../../../shared/types/graph.types.js';
+// import { TaskType } from '../../../shared/types/graph.type.js';
 
 // // Mock dependencies
 // jest.mock('../../operators/modelSelector.js');

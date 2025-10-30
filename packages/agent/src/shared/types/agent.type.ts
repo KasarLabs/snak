@@ -1,5 +1,5 @@
 import { AgentConfig } from '@snakagent/core';
-import { SnakAgent } from '../agents/core/snakAgent.js';
+import { SnakAgent } from '../../agents/core/snakAgent.js';
 import { BaseAgent } from '@agents/core/baseAgent.js';
 
 /**
