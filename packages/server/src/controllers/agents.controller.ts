@@ -289,11 +289,30 @@ export class AgentsController {
     if (!agent) {
       throw new ServerError('E01TA400');
     }
+    // Validate content is not empty
+    if (
+      !userRequest.request.content ||
+      userRequest.request.content.trim().length === 0
+    ) {
+      throw new ServerError('E04TA120'); // Invalid request format
+    }
 
     const messageRequest: MessageRequest = {
       agent_id: agent.getAgentConfig().id.toString(),
-      content: userRequest.request.content ?? '',
+      thread_id: userRequest.request.thread_id,
+      content: userRequest.request.content,
     };
+
+    if (messageRequest.thread_id) {
+      const isThreadExists = await message.check_thread_exists_for_agent(
+        messageRequest.thread_id,
+        messageRequest.agent_id,
+        userId
+      );
+      if (isThreadExists === false) {
+        throw new ServerError('E01TA400');
+      } // TODO add specific error
+    }
 
     const action = this.agentService.handleUserRequest(
       agent,

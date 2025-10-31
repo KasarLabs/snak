@@ -69,7 +69,6 @@
     "max_profile_length": 255
   },
   "agents": {
-    "prompts_id_max_length": 255,
     "profile": {
       "name_max_length": 100,
       "name_min_length": 3,

@@ -49,6 +49,7 @@
     "node:server": "node ./mcps/snak/dist/index.js",
     "start:prod": "lerna run start --scope \"@snakagent/server\"; ECODE=$? ; exit $ECODE",
     "test_metrics": "jest packages/metrics/src/__tests__/metrics.test.ts",
+    "datasets": "tsx --tsconfig=packages/agent/tsconfig.json --env-file=.env packages/agent/src/agents/langsmith/run-datasets.ts",
     "format": "prettier --write \"packages/**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "dependencies": {
@@ -60,11 +61,10 @@
     "@langchain/langgraph": "^0.4.9",
     "@langchain/langgraph-checkpoint": "~0.1.1",
     "@langchain/langgraph-checkpoint-postgres": "^0.1.2",
-    "@langchain/mcp-adapters": "^0.6.0",
     "@langchain/langgraph-supervisor": "^0.0.20",
+    "@langchain/mcp-adapters": "^0.6.0",
     "@langchain/ollama": "^0.1.6",
     "@langchain/openai": "^0.3.17",
-    "langchain": "^0.3.34",
     "@nestjs/platform-socket.io": "^11.1.1",
     "@nestjs/websockets": "^11.1.1",
     "add": "^2.0.6",
@@ -73,6 +73,9 @@
     "dotenv": "^16.6.1",
     "ethers": "^6.15.0",
     "express": "^4.21.2",
+    "langchain": "^0.3.34",
+    "langsmith": "^0.3.73",
+    "openevals": "^0.1.1",
     "pg": "^8.15.6",
     "prom-client": "^15.1.3",
     "socket.io": "^4.8.1",
@@ -96,6 +99,7 @@
     "@types/yargs": "^17.0.33",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
+    "concurrently": "^9.2.1",
     "eslint": "^9.37.0",
     "eslint-config-prettier": "^9.1.2",
     "eslint-plugin-prettier": "^5.5.4",
@@ -114,6 +118,7 @@
     "turbo": "^2.5.8",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.0",
+    "wait-on": "^9.0.1",
     "zod-to-json-schema": "^3.24.6"
   },
   "engines": {
@@ -125,7 +130,8 @@
       "is-core-module": "2.13.1"
     },
     "patchedDependencies": {
-      "@google/generative-ai@0.24.1": "patches/@google__generative-ai@0.24.1.patch"
+      "@google/generative-ai@0.24.1": "patches/@google__generative-ai@0.24.1.patch",
+      "@langchain/langgraph-supervisor@0.0.20": "patches/@langchain__langgraph-supervisor@0.0.20.patch"
     }
   }
 }

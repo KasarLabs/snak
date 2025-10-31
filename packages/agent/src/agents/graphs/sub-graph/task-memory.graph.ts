@@ -79,6 +79,7 @@ export class MemoryGraph {
     return memories.map((memory) => ({
       user_id: user_id,
       run_id: threadId,
+      thread_id: threadId,
       task_id: task.id,
       step_id: lastStep.id,
       content: memory.content,
@@ -98,6 +99,7 @@ export class MemoryGraph {
     }
     return memories.map((memory) => ({
       user_id: user_id,
+      thread_id: threadId,
       run_id: threadId,
       task_id: task.id,
       step_id: lastStep.id,
@@ -163,7 +165,8 @@ export class MemoryGraph {
 
   private async holistic_memory_manager(
     agentConfig: AgentConfig.Runtime,
-    currentTask: TaskType
+    currentTask: TaskType,
+    threadId: string
   ): Promise<{ updatedTask: TaskType }> {
     try {
       const stepsToSave = currentTask.steps.filter(
@@ -192,6 +195,7 @@ export class MemoryGraph {
             toolsToSave.map(async (tool) => {
               const h_memory: HolisticMemoryContext = {
                 user_id: agentConfig.user_id,
+                thread_id: threadId,
                 task_id: currentTask.id,
                 step_id: step.id,
                 type: memory.HolisticMemoryEnumType.TOOL,
@@ -203,6 +207,7 @@ export class MemoryGraph {
           );
           const h_memory: HolisticMemoryContext = {
             user_id: agentConfig.user_id,
+            thread_id: threadId,
             task_id: currentTask.id,
             step_id: step.id,
             type: memory.HolisticMemoryEnumType.AI_RESPONSE,
@@ -339,6 +344,7 @@ export class MemoryGraph {
       }
       const agentConfig = config.configurable!.agent_config!;
       const currentTask = getCurrentTask(state.tasks);
+      const threadId = config.configurable!.thread_id!;
       const recentMemories = STMManager.getRecentMemories(
         state.memories.stm,
         1
@@ -368,7 +374,8 @@ export class MemoryGraph {
       ) {
         const result = await this.holistic_memory_manager(
           agentConfig,
-          currentTask
+          currentTask,
+          threadId
         );
         state.tasks[state.tasks.length - 1] = result.updatedTask;
         return { lastNode: TaskMemoryNode.LTM_MANAGER, tasks: state.tasks };
@@ -414,6 +421,7 @@ export class MemoryGraph {
         throw new Error('Max memory graph steps reached');
       }
       const agentConfig = config.configurable!.agent_config!;
+      const threadId = config.configurable!.thread_id!;
       const recentSTM = STMManager.getRecentMemories(state.memories.stm, 1);
       if (recentSTM.length === 0) {
         return {
@@ -431,7 +439,8 @@ export class MemoryGraph {
       const retrievedMemories =
         await this.memoryDBManager.retrieveSimilarMemories(
           request,
-          agentConfig.user_id
+          agentConfig.user_id,
+          threadId
         );
 
       if (!retrievedMemories.success || !retrievedMemories.data) {

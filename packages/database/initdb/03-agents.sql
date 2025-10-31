@@ -85,7 +85,6 @@ CREATE TYPE agent_config_output AS (
     user_id UUID,
     profile agent_profile,
     mcp_servers JSONB,
-    prompts_id UUID,
     graph graph_config,
     memory memory_config,
     rag rag_config,
@@ -115,10 +114,7 @@ CREATE TABLE agents (
     
     -- MCP Servers configurations (using JSONB as per manual 8.14) - MANDATORY
     mcp_servers JSONB NOT NULL,
-    
-    -- Prompt configurations (composite type) - MANDATORY
-    prompts_id UUID NOT NULL,
-    
+
     -- Graph execution settings (composite type) - MANDATORY
     graph graph_config NOT NULL,
     
@@ -141,8 +137,7 @@ CREATE TABLE agents (
     
     -- Constraints (WITHOUT the problematic UNIQUE constraints)
     CONSTRAINT agents_name_not_empty CHECK (length(trim((profile).name)) > 0),
-    CONSTRAINT agents_mcp_servers_not_null CHECK (mcp_servers IS NOT NULL),
-    CONSTRAINT fk_agents_prompts_id FOREIGN KEY (prompts_id) REFERENCES prompts(id) ON DELETE CASCADE
+    CONSTRAINT agents_mcp_servers_not_null CHECK (mcp_servers IS NOT NULL)
 );
 
 
@@ -154,7 +149,6 @@ CREATE INDEX idx_agents_user_id ON agents (user_id);
 CREATE INDEX idx_agents_name ON agents (((profile).name));
 CREATE INDEX idx_agents_group ON agents (((profile)."group"));
 CREATE INDEX idx_agents_created_at ON agents (created_at);
-CREATE INDEX idx_agents_prompts_id ON agents (prompts_id);
 
 -- GIN index for JSONB mcp_servers for efficient queries
 CREATE INDEX idx_agents_mcp_servers ON agents USING GIN (mcp_servers);
@@ -207,15 +201,13 @@ BEGIN
         NEW.mcp_servers,
         NEW.graph,
         NEW.memory,
-        NEW.rag,
-        NEW.prompts_id
+        NEW.rag
     ) IS DISTINCT FROM ROW(
         OLD.profile,
         OLD.mcp_servers,
         OLD.graph,
         OLD.memory,
-        OLD.rag,
-        OLD.prompts_id
+        OLD.rag
     ) THEN
         NEW.cfg_version := COALESCE(OLD.cfg_version, 0) + 1;
     ELSE
@@ -313,7 +305,7 @@ CREATE TRIGGER publish_agent_cfg_delete_trigger
     EXECUTE FUNCTION publish_agent_cfg_delete();
 
 -- ============================================================================
--- VALIDATION FUNCTION
+-- VALIDATION FUNCTION~
 -- ============================================================================
 
 -- Function to validate agent data completeness before insertion
@@ -349,13 +341,7 @@ BEGIN
     IF NEW.mcp_servers IS NULL THEN
         RAISE EXCEPTION 'Agent mcp_servers is required (can be empty object {})';
     END IF;
-    
-    
-    -- Check prompts_id
-    IF NEW.prompts_id IS NULL THEN
-        RAISE EXCEPTION 'Agent prompts_id is required';
-    END IF;
-    
+
     -- Check graph configuration
     IF NEW.graph IS NULL THEN
         RAISE EXCEPTION 'Agent graph configuration is required';
@@ -468,7 +454,6 @@ BEGIN
       ELSE profile
     END,
     mcp_servers = COALESCE(p_config->'mcp_servers', mcp_servers),
-    prompts_id = COALESCE((p_config->>'prompts_id')::UUID, prompts_id),
     graph = CASE
       WHEN p_config->'graph' IS NOT NULL THEN
         ROW(
@@ -478,7 +463,7 @@ BEGIN
           COALESCE((p_config->'graph'->>'execution_timeout_ms')::bigint, (graph).execution_timeout_ms),
           COALESCE((p_config->'graph'->>'max_token_usage')::integer, (graph).max_token_usage),
           ROW(
-            COALESCE(p_config->'graph'->'model'->>'model_provider', p_config->'graph'->'model'->>'provider', ((graph).model).model_provider),
+            COALESCE(p_config->'graph'->'model'->>'model_provider', ((graph).model).model_provider),
             COALESCE(p_config->'graph'->'model'->>'model_name', ((graph).model).model_name),
             COALESCE((p_config->'graph'->'model'->>'temperature')::numeric(3,2), ((graph).model).temperature),
             COALESCE((p_config->'graph'->'model'->>'max_tokens')::integer, ((graph).model).max_tokens)
@@ -544,7 +529,6 @@ BEGIN
           a.user_id,
           a.profile,
           a.mcp_servers,
-          a.prompts_id,
           a.graph,
           a.memory,
           a.rag,
@@ -569,7 +553,6 @@ CREATE OR REPLACE FUNCTION replace_agent_complete(
     p_user_id UUID,
     p_profile agent_profile,
     p_mcp_servers JSONB,
-    p_prompts_id UUID,
     p_graph graph_config,
     p_memory memory_config,
     p_rag rag_config,
@@ -598,7 +581,6 @@ BEGIN
     UPDATE agents SET
         profile = p_profile,
         mcp_servers = p_mcp_servers,
-        prompts_id = p_prompts_id,
         graph = p_graph,
         memory = p_memory,
         rag = p_rag,
@@ -652,7 +634,6 @@ CREATE OR REPLACE FUNCTION insert_agent_from_json(
   user_id UUID,
   profile JSONB,
   mcp_servers JSONB,
-  prompts_id UUID,
   graph JSONB,
   memory JSONB,
   rag JSONB,
@@ -662,22 +643,13 @@ CREATE OR REPLACE FUNCTION insert_agent_from_json(
   avatar_mime_type VARCHAR(50)
 ) AS $$
 DECLARE
-  v_prompts_id UUID;
   v_inserted_id UUID;
 BEGIN
-  -- Extract prompts_id, use NULL if not present
-  v_prompts_id := (p_config->>'prompts_id')::UUID;
-
-  -- If NULL, initialize default prompts
-  IF v_prompts_id IS NULL THEN
-    RAISE EXCEPTION 'prompts_id is required in the configuration JSON';
-  END IF;
 
   INSERT INTO agents (
     user_id,
     profile,
     mcp_servers,
-    prompts_id,
     graph,
     memory,
     rag,
@@ -692,7 +664,6 @@ BEGIN
       ARRAY(SELECT jsonb_array_elements_text(p_config->'profile'->'contexts'))
     )::agent_profile,
     p_config->'mcp_servers',
-    v_prompts_id,
     ROW(
       (p_config->'graph'->>'max_steps')::integer,
       (p_config->'graph'->>'max_iterations')::integer,
@@ -700,7 +671,7 @@ BEGIN
       (p_config->'graph'->>'execution_timeout_ms')::bigint,
       (p_config->'graph'->>'max_token_usage')::integer,
       ROW(
-        COALESCE(p_config->'graph'->'model'->>'model_provider', p_config->'graph'->'model'->>'provider'),
+        COALESCE(p_config->'graph'->'model'->>'model_provider', p_config->'graph'->'model'->>'model_provider'),
         p_config->'graph'->'model'->>'model_name',
         (p_config->'graph'->'model'->>'temperature')::numeric(3,2),
         (p_config->'graph'->'model'->>'max_tokens')::integer
@@ -743,12 +714,11 @@ BEGIN
   SELECT
     a.id,
     a.user_id,
-    to_jsonb(a.profile) as profile,        
+    to_jsonb(a.profile) as profile,
     a.mcp_servers as mcp_servers,
-    a.prompts_id,
-    to_jsonb(a.graph) as graph,           
-    to_jsonb(a.memory) as memory,          
-    to_jsonb(a.rag) as rag,          
+    to_jsonb(a.graph) as graph,
+    to_jsonb(a.memory) as memory,
+    to_jsonb(a.rag) as rag,
     a.created_at,
     a.updated_at,
     a.avatar_image,
@@ -762,93 +732,8 @@ $$ LANGUAGE plpgsql;
 -- USAGE EXAMPLES
 -- ============================================================================
 
--- Example 1: Creating a new agent with COMPLETE configuration (ALL FIELDS REQUIRED)
-/*
-INSERT INTO agents (
-    user_id,
-    name,
-    "group",
-    profile,
-    mcp_servers,
-    plugins,
-    prompts_id,
-    graph,
-    memory,
-    rag
-) VALUES (
-    '123e4567-e89b-12d3-a456-426614174000'::UUID,  -- user_id (required)
-    'Customer Service Bot',
-    'support',
-    ROW(
-        'Handles customer inquiries and support tickets',
-        ARRAY['Friendly and helpful', 'Patient with customers'],
-        ARRAY['Resolve customer issues', 'Provide accurate information'],
-        ARRAY['product-catalog', 'return-policy', 'shipping-info'],
-        NULL
-    )::agent_profile,
-    '{"slack": {"url": "https://slack.api", "token": "xxx"}}'::jsonb,
-    ARRAY['email-plugin', 'calendar-plugin'],
-    '550e8400-e29b-41d4-a716-446655440001'::UUID,
-    ROW(
-        200, 30, 5, 600000, 150000,
-        ROW('gpt-4-turbo', 0.8, 8192, 0.9, 0.1, 0.1)::model_config
-    )::graph_config,
-    ROW(
-        true, 0.85,
-        ROW(15, 100, 100, 30)::memory_size_limits,
-        ROW(0.75, 0.65, 0.55, 0.85)::memory_thresholds,
-        ROW(10000, 5000)::memory_timeouts,
-        'categorized'::memory_strategy
-    )::memory_config,
-    ROW(true, 10, 'text-embedding-3-large')::rag_config
-);
-*/
-
--- Example 2: This will FAIL - missing required fields
-/*
-INSERT INTO agents (name) VALUES ('Test Bot');
--- ERROR: Agent profile is required
-*/
-
--- Example 3: Minimal valid agent with empty arrays/objects where allowed
-/*
-INSERT INTO agents (
-    user_id,
-    name,
-    profile,
-    mcp_servers,
-    plugins,
-    prompts_id,
-    graph,
-    memory,
-    rag
-) VALUES (
-    '123e4567-e89b-12d3-a456-426614174000'::UUID,  -- user_id (required)
-    'Minimal Bot',
-    ROW(
-        'A minimal agent configuration',
-        ARRAY[]::TEXT[],  -- empty lore
-        ARRAY[]::TEXT[],  -- empty objectives
-        ARRAY[]::TEXT[],  -- empty knowledge
-        NULL
-    )::agent_profile,
-    '{}'::jsonb,  -- empty mcp_servers
-    ARRAY[]::TEXT[],  -- empty plugins
-    '550e8400-e29b-41d4-a716-446655440002'::UUID,
-    ROW(
-        100, 15, 3, 300000, 100000,
-        ROW('gpt-4', 0.7, 4096, 0.95, 0.0, 0.0)::model_config
-    )::graph_config,
-    ROW(
-        false, 0.8,
-        ROW(10, 50, 50, 20)::memory_size_limits,
-        ROW(0.7, 0.6, 0.5, 0.8)::memory_thresholds,
-        ROW(5000, 3000)::memory_timeouts,
-        'holistic'::memory_strategy
-    )::memory_config,
-    ROW(false, 5, 'text-embedding-ada-002')::rag_config
-);
-*/
+-- Use the insert_agent_from_json function to create new agents
+-- See documentation for proper usage
 
 -- Example 4: Querying agents by memory strategy for a specific user
 /*

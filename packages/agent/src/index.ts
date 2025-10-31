@@ -8,6 +8,12 @@ export { SnakAgent } from './agents/core/snakAgent.js';
 export { SupervisorAgent } from './agents/core/supervisorAgent.js';
 
 export { BaseAgent } from './agents/core/baseAgent.js';
+
+// Agent initialization utilities
+export {
+  initializeModels,
+  createAgentConfigRuntimeFromOutputWithId,
+} from './utils/agent-initialization.utils.js';
 // Core agent utilities
 export { initializeToolsList } from './tools/tools.js';
 export type {

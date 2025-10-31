@@ -105,7 +105,6 @@ CREATE TABLE IF NOT EXISTS message (
     --  row(s) referencing it should be automatically deleted as well"
     FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
 );
-
 -- Message Retrieval Functions
 -- ============================================================================
 
@@ -173,73 +172,78 @@ $$;
 CREATE OR REPLACE FUNCTION get_messages_optimized(
     -- Required: Which agent's messages to retrieve
     p_agent_id UUID,
-    
-    -- Required: Which conversation thread to query
-    p_thread_id TEXT,
-    
+
     -- Required: User ID for access control verification
     -- Ensures user can only access messages from their own agents
     p_user_id UUID,
-    
+
+    -- Optional: Which conversation thread to query
+    -- If NULL, returns all messages for the agent regardless of thread
+    p_thread_id TEXT DEFAULT NULL,
+
     -- Optional: Sort order (false = ascending, true = descending)
     -- Default ascending provides chronological conversation flow
     p_order_desc BOOLEAN DEFAULT FALSE,
-    
+
     -- Optional: Maximum number of messages to return
     -- NULL means no limit (returns all matching messages)
     p_limit INTEGER DEFAULT NULL,
-    
+
     -- Optional: Number of messages to skip
     -- Used for pagination in combination with p_limit
     p_offset INTEGER DEFAULT 0
 )
 -- Return Type: Table with all essential message fields
--- Excludes internal fields like 'id' and 'created_at' for cleaner API
+-- Includes id and created_at for consistency
 RETURNS TABLE (
+    id UUID,
     agent_id UUID,
     user_id UUID,
     event TEXT,
     run_id TEXT,
     thread_id TEXT,
+    task_title TEXT,
     checkpoint_id TEXT,
     task_id UUID,
     step_id UUID,
-    task_title TEXT,
     "from" TEXT,
     message TEXT,
     tools JSONB,
     metadata JSONB,
-    "timestamp" TIMESTAMP WITH TIME ZONE
+    "timestamp" TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE
     )
 LANGUAGE plpgsql
 AS $$
 BEGIN
     -- Conditional execution based on requested sort order
     -- Separate queries optimize PostgreSQL's query planner performance
-    
+
     IF p_order_desc THEN
         -- Descending order: Most recent messages first
         -- Useful for displaying latest conversation activity
         RETURN QUERY
         SELECT
+            m.id,
             m.agent_id,
-            a.user_id,
+            m.user_id,
             m.event,
             m.run_id,
             m.thread_id,
+            m.task_title,
             m.checkpoint_id,
             m.task_id,
             m.step_id,
-            m.task_title,
             m."from",
             m.message,
             m.tools,
             m.metadata,
-            m."timestamp"
+            m."timestamp",
+            m.created_at
         FROM message m
         INNER JOIN agents a ON m.agent_id = a.id
         WHERE m.agent_id = p_agent_id
-          AND m.thread_id = p_thread_id
+          AND (p_thread_id IS NULL OR m.thread_id = p_thread_id)
           AND a.user_id = p_user_id
         ORDER BY m."timestamp" DESC
         LIMIT COALESCE(p_limit, 2147483647)  -- Max INT when p_limit is NULL
@@ -249,24 +253,26 @@ BEGIN
         -- Standard for displaying conversation history
         RETURN QUERY
         SELECT
+            m.id,
             m.agent_id,
-            a.user_id,
+            m.user_id,
             m.event,
             m.run_id,
             m.thread_id,
+            m.task_title,           -- Move before checkpoint_id
             m.checkpoint_id,
             m.task_id,
             m.step_id,
-            m.task_title,
             m."from",
             m.message,
             m.tools,
             m.metadata,
-            m."timestamp"
+            m."timestamp",
+            m.created_at
         FROM message m
         INNER JOIN agents a ON m.agent_id = a.id
         WHERE m.agent_id = p_agent_id
-          AND m.thread_id = p_thread_id
+          AND (p_thread_id IS NULL OR m.thread_id = p_thread_id)
           AND a.user_id = p_user_id
         ORDER BY m."timestamp" ASC
         LIMIT COALESCE(p_limit, 2147483647)
@@ -365,11 +371,17 @@ CREATE INDEX IF NOT EXISTS idx_message_tools ON message USING GIN (tools);
 --           '{"tool": "web_search", "query": "user question"}',
 --           '{"confidence": 0.9, "processing_time_ms": 150}');
 --
--- Retrieving conversation history:
---   SELECT * FROM get_messages_optimized('agent-uuid', 'thread-456', 'user-uuid', false, 50, 0);
+-- Retrieving conversation history for a specific thread:
+--   SELECT * FROM get_messages_optimized('agent-uuid', 'user-uuid', 'thread-456', false, 50, 0);
 --
--- Getting recent messages:
---   SELECT * FROM get_messages_optimized('agent-uuid', 'thread-456', 'user-uuid', true, 10, 0);
+-- Retrieving all messages for an agent (all threads):
+--   SELECT * FROM get_messages_optimized('agent-uuid', 'user-uuid', NULL, false, 50, 0);
+--
+-- Getting recent messages from a specific thread:
+--   SELECT * FROM get_messages_optimized('agent-uuid', 'user-uuid', 'thread-456', true, 10, 0);
+--
+-- Getting recent messages from all threads:
+--   SELECT * FROM get_messages_optimized('agent-uuid', 'user-uuid', NULL, true, 10, 0);
 --
 -- High-Performance Query Patterns (using indexes):
 --

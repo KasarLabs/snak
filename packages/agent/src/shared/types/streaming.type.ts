@@ -13,6 +13,7 @@ export interface ChunkOutputMetadata {
   ls_model_type?: string;
   ls_model_name?: string;
   ls_temperature?: number;
+  transfer_to?: { agent_id: string; agent_name: string; query?: string }[];
   error?: GraphErrorType | null;
   final?: boolean;
   [key: string]: any;
@@ -20,6 +21,7 @@ export interface ChunkOutputMetadata {
 
 export interface ChunkOutput {
   event: string;
+  agent_id: string;
   run_id: string;
   thread_id: string;
   checkpoint_id: string;

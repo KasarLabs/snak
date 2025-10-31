@@ -1,0 +1,177 @@
+import { Dataset, displaySummary, parseLangSmithResults } from './datasets.js';
+import * as path from 'path';
+import { SupervisorAgent } from '../core/supervisorAgent.js';
+import { createAgentConfigRuntimeFromOutputWithId } from '../../utils/agent-initialization.utils.js';
+import { supervisorAgentConfig } from '@snakagent/core';
+import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@snakagent/core';
+/**
+ * Parse command line arguments
+ */
+function parseArgs(): { graph?: string; node?: string; csv_path?: string } {
+  const args = process.argv.slice(2);
+  const result: { graph?: string; node?: string; csv_path?: string } = {};
+
+  for (const arg of args) {
+    if (arg.startsWith('--graph=')) {
+      result.graph = arg.split('=')[1];
+    } else if (arg.startsWith('--node=')) {
+      result.node = arg.split('=')[1];
+    } else if (arg.startsWith('--csv_path=')) {
+      result.csv_path = arg.split('=')[1];
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Main function to run dataset evaluation
+ */
+async function main() {
+  const args = parseArgs();
+  // Validate required arguments
+  if (!args.graph) {
+    logger.error('Error: --graph parameter is required!');
+    logger.debug(
+      '\nUsage: pnpm datasets --graph=<graph-name> --node=<node-name> [--csv_path=<path>]'
+    );
+    logger.debug(
+      '\nExample: pnpm datasets --graph=supervisor --node=supervisor'
+    );
+    logger.debug(
+      'Example: pnpm datasets --graph=supervisor --node=agentConfigurationHelper --csv_path=my-custom.csv'
+    );
+    process.exit(1);
+  }
+
+  if (!args.node) {
+    logger.error('Error: --node parameter is required!');
+    logger.debug(
+      '\nUsage: pnpm datasets --graph=<graph-name> --node=<node-name> [--csv_path=<path>]'
+    );
+    logger.debug(
+      '\nExample: pnpm datasets --graph=supervisor --node=supervisor'
+    );
+    process.exit(1);
+  }
+
+  const graphName = args.graph;
+  const nodeName = args.node;
+
+  // Validate graph name
+  if (graphName !== 'supervisor') {
+    logger.error(
+      `Error: Graph '${graphName}' not found. Only 'supervisor' graph is supported.`
+    );
+    process.exit(1);
+  }
+
+  // Validate node name
+  const validNodes = [
+    'mcpConfigurationHelper',
+    'snakRagAgentHelper',
+    'agentConfigurationHelper',
+    'supervisor',
+  ];
+  if (!validNodes.includes(nodeName)) {
+    logger.error(
+      `Error: Node '${nodeName}' is not valid. Valid nodes are: ${validNodes.join(', ')}`
+    );
+    process.exit(1);
+  }
+
+  // Generate dataset name from graph and node if csv_path is not provided
+  const datasetName = args.csv_path
+    ? args.csv_path.replace('.dataset.csv', '').replace('.csv', '')
+    : `${graphName}-${nodeName}`;
+
+  const csvFileName = args.csv_path || `${graphName}.${nodeName}.dataset.csv`;
+
+  logger.debug(`\nRunning evaluation for:`);
+  logger.debug(`   Graph: ${graphName}`);
+  logger.debug(`   Node: ${nodeName}`);
+  logger.debug(`   Dataset: ${datasetName}`);
+  logger.debug(`   CSV: ${csvFileName}\n`);
+
+  // Define the datasets directory path
+  const datasetsPath = path.join(process.cwd(), 'datasets');
+
+  try {
+    const supervisorConfigRunTime =
+      await createAgentConfigRuntimeFromOutputWithId({
+        ...supervisorAgentConfig,
+        id: uuidv4(),
+        user_id: uuidv4(),
+      });
+    if (!supervisorConfigRunTime) {
+      throw new Error(`Failed to create runtime config for supervisor agent`);
+    }
+    const supervisorAgent = new SupervisorAgent(supervisorConfigRunTime);
+    if (!supervisorAgent) {
+      throw new Error(`Failed to create supervisor agent`);
+    }
+    await supervisorAgent.init();
+
+    // Get the specified node from the compiled state graph
+    const supervisorInstance = supervisorAgent.getSupervisorGraphInstance();
+    if (!supervisorInstance) {
+      throw new Error(`Supervisor graph instance is not initialized`);
+    }
+    let targetNode;
+    if (nodeName === 'supervisor') {
+      targetNode = supervisorAgent.getCompiledStateGraph()?.nodes[nodeName];
+    } else {
+      const specializedAgents = supervisorInstance.getSpecializedAgents();
+      if (!specializedAgents || specializedAgents.length === 0) {
+        throw new Error(`No specialized agents found in supervisor graph`);
+      }
+      // Map node names to their corresponding getter methods
+      const specializedAgent = specializedAgents.find(
+        (agent) => agent.name === nodeName
+      );
+      if (!specializedAgent) {
+        throw new Error(
+          `Specialized agent for node '${nodeName}' is not found`
+        );
+      }
+      targetNode = specializedAgent.nodes['agent'];
+    }
+
+    if (!targetNode) {
+      throw new Error(`Node '${nodeName}' not found in the ${graphName} graph`);
+    }
+
+    // Run evaluation
+    // If dataset doesn't exist, it will try to create it from CSV
+    const results = await Dataset.runEvaluation(datasetName, targetNode, {
+      // These are only needed if the dataset doesn't exist and needs to be created from CSV
+      inputKeys: ['messages'],
+      outputKeys: ['output_direction'],
+      csvBasePath: datasetsPath,
+      experimentPrefix: `evaluation-${datasetName}`,
+    });
+
+    logger.debug('\nEvaluation completed successfully!');
+    const summary = parseLangSmithResults(results);
+    logger.debug(displaySummary(summary));
+  } catch (error) {
+    logger.error('\nError running evaluation:');
+    if (error instanceof Error) {
+      logger.error(error.message);
+
+      // Provide helpful error message if CSV is missing
+      if (error.message.includes('CSV file not found')) {
+        logger.debug('\nTip: Make sure you have a CSV file named:');
+        logger.debug(`   ${csvFileName}`);
+        logger.debug(`   in the datasets directory: ${datasetsPath}`);
+      }
+    } else {
+      logger.error(error);
+    }
+    process.exit(1);
+  }
+}
+
+// Run the main function
+main();

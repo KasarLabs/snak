@@ -35,19 +35,11 @@ export interface LTMContext {
 }
 
 /**
- * Base memory context
- */
-export interface MemoryContextBase {
-  user_id: string;
-  run_id: string;
-  created_at: string;
-}
-
-/**
  * Semantic memory context
  */
 export interface SemanticMemoryContext {
   user_id: string;
+  thread_id: string;
   run_id: string;
   task_id: string;
   step_id: string;
@@ -61,6 +53,7 @@ export interface SemanticMemoryContext {
 export interface EpisodicMemoryContext {
   user_id: string;
   run_id: string;
+  thread_id: string;
   task_id: string;
   step_id: string;
   content: string;
@@ -69,6 +62,7 @@ export interface EpisodicMemoryContext {
 
 export interface HolisticMemoryContext {
   user_id: string;
+  thread_id: string;
   task_id: string;
   step_id: string;
   type: memory.HolisticMemoryEnumType;
@@ -81,6 +75,7 @@ export interface HolisticMemoryContext {
  */
 export interface EpisodicMemoryInsertSQL {
   user_id: string;
+  thread_id: string;
   task_id: string;
   step_id: string;
   content: string;
@@ -93,6 +88,7 @@ export interface EpisodicMemoryInsertSQL {
  */
 export interface SemanticMemoryInsertSQL {
   user_id: string;
+  thread_id: string;
   task_id: string;
   step_id: string;
   fact: string;

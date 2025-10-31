@@ -4,9 +4,9 @@ import {
   AgentConfig,
   AgentProfile,
   McpServerConfig,
-  ModelConfig,
   logger,
   AGENT_CFG_CACHE_DEFAULT_TTL_SECONDS,
+  ModelConfig,
 } from '@snakagent/core';
 import { metrics } from '@snakagent/metrics';
 import { Postgres } from '../../database.js';
@@ -58,15 +58,6 @@ export namespace agents {
   export interface AgentAvatarData {
     id: string;
     avatar_mime_type: string;
-  }
-  /**
-   * Prompts data
-   */
-  export interface PromptsData {
-    task_executor_prompt: string;
-    task_manager_prompt: string;
-    task_verifier_prompt: string;
-    task_memory_manager_prompt: string;
   }
 
   // ============================================================================
@@ -140,14 +131,12 @@ export namespace agents {
       includeUserId?: boolean;
       includeAvatar?: boolean;
       includeAvatarUrl?: boolean;
-      includePromptsId?: boolean;
     } = {}
   ): string {
     const {
       includeUserId = false,
       includeAvatar = false,
       includeAvatarUrl = false,
-      includePromptsId = true,
     } = options;
 
     const fields = [
@@ -155,7 +144,6 @@ export namespace agents {
       ...(includeUserId ? ['user_id'] : []),
       'row_to_json(profile) as profile',
       'mcp_servers',
-      ...(includePromptsId ? ['prompts_id'] : []),
       'row_to_json(graph) as graph',
       'row_to_json(memory) as memory',
       'row_to_json(rag) as rag',
@@ -281,7 +269,6 @@ export namespace agents {
             user_id,
             row_to_json(profile)        AS profile,
             mcp_servers,
-            prompts_id,
             row_to_json(graph)          AS graph,
             row_to_json(memory)         AS memory,
             row_to_json(rag)            AS rag,
@@ -359,7 +346,6 @@ export namespace agents {
     return `id,
         row_to_json(profile) as profile,
         mcp_servers as "mcp_servers",
-        prompts_id,
         row_to_json(graph) as graph,
         row_to_json(memory) as memory,
         row_to_json(rag) as rag,
@@ -446,7 +432,7 @@ export namespace agents {
       );
 
     if (result) {
-      const { id, user_id, prompts_id, ...agentConfig } = result;
+      const { id, user_id, ...agentConfig } = result;
       return { id, agentConfig };
     }
 
@@ -624,7 +610,6 @@ export namespace agents {
       `id,
        row_to_json(profile) as profile,
        mcp_servers,
-       prompts_id,
        row_to_json(graph) as graph,
        row_to_json(memory) as memory,
        row_to_json(rag) as rag,
@@ -743,24 +728,24 @@ export namespace agents {
   /**
    * Get messages from agents using the optimized function
    * @param agentId - Agent ID
-   * @param threadId - Thread ID (optional)
    * @param userId - User ID
-   * @param includeDeleted - Include deleted messages
+   * @param threadId - Thread ID (optional, if null returns all messages for the agent)
+   * @param orderDesc - Sort order (false = ascending, true = descending)
    * @param limit - Limit number of messages
    * @param offset - Offset for pagination
    * @returns Promise<any[]>
    */
   export async function getMessagesOptimized(
     agentId: string,
-    threadId: string | null,
     userId: string,
-    includeDeleted: boolean,
+    threadId: string | null | undefined,
+    orderDesc: boolean,
     limit: number,
     offset: number
   ): Promise<any[]> {
     const query = new Postgres.Query(
-      `SELECT * FROM get_messages_optimized($1::UUID,$2,$3::UUID,$4,$5,$6)`,
-      [agentId, threadId, userId, includeDeleted, limit, offset]
+      `SELECT * FROM get_messages_optimized($1::UUID,$2::UUID,$3,$4,$5,$6)`,
+      [agentId, userId, threadId ?? null, orderDesc, limit, offset]
     );
 
     const result = await Postgres.query<any>(query);
@@ -786,47 +771,6 @@ export namespace agents {
     );
 
     const result = await Postgres.query<ModelConfig>(query);
-    return result.length > 0 ? result[0] : null;
-  }
-
-  /**
-   * Get prompts by ID
-   * @param promptId - Prompt ID (UUID)
-   * @returns Promise<PromptsData | null>
-   */
-  export async function getPromptsById(
-    promptId: string
-  ): Promise<PromptsData | null> {
-    const query = new Postgres.Query(
-      `SELECT json_build_object(
-        'task_executor_prompt', task_executor_prompt,
-        'task_manager_prompt', task_manager_prompt,
-        'task_verifier_prompt', task_verifier_prompt,
-        'task_memory_manager_prompt', task_memory_manager_prompt
-      ) as prompts_json
-       FROM prompts
-       WHERE id = $1`,
-      [promptId]
-    );
-
-    const result = await Postgres.query<{ prompts_json: PromptsData }>(query);
-    return result.length > 0 ? result[0].prompts_json : null;
-  }
-
-  /**
-   * Get existing prompts for a user
-   * @param userId - User ID
-   * @returns Promise<{id: string} | null>
-   */
-  export async function getExistingPromptsForUser(
-    userId: string
-  ): Promise<{ id: string } | null> {
-    const query = new Postgres.Query(
-      `SELECT id FROM prompts WHERE user_id = $1 LIMIT 1`,
-      [userId]
-    );
-
-    const result = await Postgres.query<{ id: string }>(query);
     return result.length > 0 ? result[0] : null;
   }
 
@@ -890,7 +834,7 @@ export namespace agents {
     agentConfig: AgentConfig.Input
   ): Promise<AgentConfig.Output | null> {
     const query = new Postgres.Query(
-      `SELECT id, user_id, profile, mcp_servers, prompts_id, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type
+      `SELECT id, user_id, profile, mcp_servers, graph, memory, rag, created_at, updated_at, avatar_image, avatar_mime_type
           FROM insert_agent_from_json($1, $2)`,
       [userId, JSON.stringify(agentConfig)]
     );
@@ -902,7 +846,7 @@ export namespace agents {
   /**
    * Create default model configuration for a user
    * @param userId - User ID
-   * @param provider - Model provider
+   * @param model_provider - Model provider
    * @param modelName - Model name
    * @param temperature - Temperature setting
    * @param maxTokens - Max tokens setting
@@ -910,62 +854,17 @@ export namespace agents {
    */
   export async function createModelConfig(
     userId: string,
-    provider: string,
+    modelProvider: string,
     modelName: string,
     temperature: number,
     maxTokens: number
   ): Promise<void> {
     const query = new Postgres.Query(
       'INSERT INTO models_config (user_id,model) VALUES ($1,ROW($2, $3, $4, $5)::model_config)',
-      [userId, provider, modelName, temperature, maxTokens]
+      [userId, modelProvider, modelName, temperature, maxTokens]
     );
 
     await Postgres.query(query);
-  }
-
-  /**
-   * Create default prompts for a user
-   * @param userId - User ID
-   * @param taskExecutorPrompt - Task executor system prompt
-   * @param taskManagerPrompt - Task manager system prompt
-   * @param taskVerifierPrompt - Task verifier system prompt
-   * @param taskMemoryManagerPrompt - Task memory manager system prompt
-   * @param isPublic - Whether prompts are public
-   * @returns Promise<string> - The created prompt ID
-   */
-  export async function createDefaultPrompts(
-    userId: string,
-    taskExecutorPrompt: string,
-    taskManagerPrompt: string,
-    taskVerifierPrompt: string,
-    taskMemoryManagerPrompt: string,
-    isPublic: boolean = false
-  ): Promise<string> {
-    const query = new Postgres.Query(
-      `INSERT INTO prompts (
-        user_id,
-        task_executor_prompt,
-        task_manager_prompt,
-        task_verifier_prompt,
-        task_memory_manager_prompt,
-        public
-      ) VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id`,
-      [
-        userId,
-        taskExecutorPrompt,
-        taskManagerPrompt,
-        taskVerifierPrompt,
-        taskMemoryManagerPrompt,
-        isPublic,
-      ]
-    );
-
-    const result = await Postgres.query<{ id: string }>(query);
-    if (result.length === 0) {
-      throw new Error('Failed to create default prompts - no ID returned');
-    }
-    return result[0].id;
   }
 
   // ============================================================================
@@ -1084,7 +983,7 @@ export namespace agents {
   /**
    * Update model configuration for a user
    * @param userId - User ID
-   * @param provider - Model provider
+   * @param model_provider - Model provider
    * @param modelName - Model name
    * @param temperature - Temperature setting
    * @param maxTokens - Max tokens setting
@@ -1092,14 +991,14 @@ export namespace agents {
    */
   export async function updateModelConfig(
     userId: string,
-    provider: string,
+    modelProvider: string,
     modelName: string,
     temperature: number,
     maxTokens: number
   ): Promise<any> {
     const query = new Postgres.Query(
       `UPDATE models_config SET model = ROW($1, $2, $3, $4)::model_config WHERE user_id = $5`,
-      [provider, modelName, temperature, maxTokens, userId]
+      [modelProvider, modelName, temperature, maxTokens, userId]
     );
 
     const result = await Postgres.query(query);

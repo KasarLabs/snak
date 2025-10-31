@@ -239,10 +239,6 @@ export class AgentStorage implements OnModuleInit {
       }
     }
 
-    const prompt_id =
-      agentConfig.prompts_id ?? (await this.initializeDefaultPrompts(userId));
-
-    agentConfig.prompts_id = prompt_id;
     agentConfig.profile.name = finalName;
     await this.agentValidationService.validateAgent(
       { ...agentConfig, user_id: userId },
@@ -522,17 +518,14 @@ export class AgentStorage implements OnModuleInit {
       if (!modelInstance) {
         throw new Error('Failed to initialize model for SnakAgent');
       }
-      const promptsFromDb = await this.getPromptsFromDatabase(
-        agentConfigOutputWithId.prompts_id
-      );
-      if (!promptsFromDb) {
-        throw new Error(
-          `Failed to load prompts for agent ${agentConfigOutputWithId.id}, prompts ID: ${agentConfigOutputWithId.prompts_id}`
-        );
-      }
       const AgentConfigRuntime: AgentConfig.Runtime = {
         ...agentConfigOutputWithId,
-        prompts: promptsFromDb,
+        prompts: {
+          task_executor_prompt: TASK_EXECUTOR_SYSTEM_PROMPT,
+          task_manager_prompt: TASK_MANAGER_SYSTEM_PROMPT,
+          task_memory_manager_prompt: TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+          task_verifier_prompt: TASK_VERIFIER_SYSTEM_PROMPT,
+        },
         graph: {
           ...agentConfigOutputWithId.graph,
           model: modelInstance,
@@ -591,17 +584,14 @@ export class AgentStorage implements OnModuleInit {
     if (!modelInstance) {
       throw new Error('Failed to initialize model for SnakAgent');
     }
-    const promptsFromDb = await this.getPromptsFromDatabase(
-      canonical.prompts_id
-    );
-    if (!promptsFromDb) {
-      throw new Error(
-        `Failed to load prompts for agent ${canonical.id}, prompts ID: ${canonical.prompts_id}`
-      );
-    }
     return {
       ...canonical,
-      prompts: promptsFromDb,
+      prompts: {
+        task_executor_prompt: TASK_EXECUTOR_SYSTEM_PROMPT,
+        task_manager_prompt: TASK_MANAGER_SYSTEM_PROMPT,
+        task_memory_manager_prompt: TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
+        task_verifier_prompt: TASK_VERIFIER_SYSTEM_PROMPT,
+      },
       graph: {
         ...canonical.graph,
         model: modelInstance,
@@ -633,74 +623,6 @@ export class AgentStorage implements OnModuleInit {
       return snakAgent;
     } catch (error) {
       logger.error(`Error creating SnakAgent from config:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get prompts from database by prompt ID
-   * @private
-   * @param promptId - UUID of the prompt configuration
-   * @returns Promise<AgentConfig.Prompts | null> - Parsed prompts or null if not found
-   */
-  private async getPromptsFromDatabase(
-    promptId: string
-  ): Promise<AgentPromptsInitialized<string> | null> {
-    try {
-      const promptData = await agents.getPromptsById(promptId);
-
-      if (!promptData) {
-        logger.warn(`No prompts found for ID: ${promptId}`);
-        return null;
-      }
-
-      // Validate that we have valid prompt data
-      if (typeof promptData !== 'object') {
-        logger.warn(`Invalid prompt data structure for ID: ${promptId}`);
-        return null;
-      }
-
-      // Parse to proper format and return as SystemMessage objects
-      return {
-        task_executor_prompt: promptData.task_executor_prompt,
-        task_manager_prompt: promptData.task_manager_prompt,
-        task_memory_manager_prompt: promptData.task_memory_manager_prompt,
-        task_verifier_prompt: promptData.task_verifier_prompt,
-      };
-    } catch (error) {
-      logger.error(`Failed to fetch prompts from database: ${error.message}`);
-      return null;
-    }
-  }
-
-  private async initializeDefaultPrompts(userId: string): Promise<string> {
-    try {
-      // First, check if prompts already exist for this user
-      const existing = await agents.getExistingPromptsForUser(userId);
-
-      if (existing) {
-        logger.debug(
-          `Default prompts already exist for user ${userId}, returning existing ID`
-        );
-        return existing.id;
-      }
-
-      // Insert new default prompts for the user
-      const promptId = await agents.createDefaultPrompts(
-        userId,
-        TASK_EXECUTOR_SYSTEM_PROMPT,
-        TASK_MANAGER_SYSTEM_PROMPT,
-        TASK_VERIFIER_SYSTEM_PROMPT,
-        TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-        false
-      );
-
-      logger.debug(
-        `Default prompts created successfully for user ${userId} with ID: ${promptId}`
-      );
-      return promptId;
-    } catch (error) {
-      logger.error('Failed to initialize default prompts:', error);
       throw error;
     }
   }

@@ -1,8 +1,7 @@
 import {
   AgentConfig,
   MemoryStrategy,
-} from '@common/agent/interfaces/agent.interface.js';
-import { Agent } from 'http';
+} from '../../common/agent/interfaces/agent.interface.js';
 
 /**
  * Agent Selector Configuration

@@ -6,12 +6,7 @@ import {
   validateAgentQuotas,
   AgentDatabaseInterface,
 } from '@snakagent/core';
-import {
-  TASK_EXECUTOR_SYSTEM_PROMPT,
-  TASK_MANAGER_SYSTEM_PROMPT,
-  TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-  TASK_VERIFIER_SYSTEM_PROMPT,
-} from '@prompts/index.js';
+
 import { normalizeNumericValues } from '../utils/normalizeAgentValues.js';
 import { CreateAgentSchema, CreateAgentInput } from './schemas/index.js';
 import { agents } from '@snakagent/database/queries';
@@ -103,14 +98,6 @@ export function createAgentTool(
         if (nameNote) {
           notes.push(nameNote);
         }
-
-        const { id: promptId, created: promptsCreated } =
-          await ensurePromptsId(userId);
-        if (promptsCreated) {
-          notes.push('Default prompts initialized for the user.');
-        }
-
-        agentConfigData.prompts_id = promptId;
 
         // Insert into database
         const createdAgent = await agents.insertAgentFromJson(
@@ -213,29 +200,4 @@ async function resolveUniqueAgentName(
     name: `${baseName}-1`,
     note: `Name collision detected; defaulted to suffix "-1".`,
   };
-}
-
-async function ensurePromptsId(
-  userId: string,
-  providedId?: string | null
-): Promise<{ id: string; created: boolean }> {
-  if (providedId) {
-    return { id: providedId, created: false };
-  }
-
-  const existing = await agents.getExistingPromptsForUser(userId);
-  if (existing) {
-    return { id: existing.id, created: false };
-  }
-
-  const promptId = await agents.createDefaultPrompts(
-    userId,
-    TASK_EXECUTOR_SYSTEM_PROMPT,
-    TASK_MANAGER_SYSTEM_PROMPT,
-    TASK_VERIFIER_SYSTEM_PROMPT,
-    TASK_MEMORY_MANAGER_SYSTEM_PROMPT,
-    false
-  );
-
-  return { id: promptId, created: true };
 }

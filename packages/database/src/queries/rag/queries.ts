@@ -96,7 +96,7 @@ export namespace rag {
   export async function totalSize(userId: string): Promise<number> {
     const q = new Postgres.Query(
       `SELECT COALESCE(SUM(file_size),0) AS size 
-       FROM (
+       FROM (~
          SELECT DISTINCT dv.document_id, dv.file_size 
          FROM document_vectors dv
          INNER JOIN agents a ON dv.agent_id = a.id

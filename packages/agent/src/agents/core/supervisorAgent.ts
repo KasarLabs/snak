@@ -5,13 +5,12 @@ import {
   ChunkOutput,
   ChunkOutputMetadata,
 } from '../../shared/types/streaming.type.js';
-import { createSupervisorGraph } from '@agents/graphs/core-graph/supervisor.graph.js';
-import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
 import {
-  AIMessage,
-  AIMessageChunk,
-  HumanMessage,
-} from '@langchain/core/messages';
+  createSupervisorGraph,
+  SupervisorGraph,
+} from '@agents/graphs/core-graph/supervisor.graph.js';
+import { CheckpointerService } from '@agents/graphs/manager/checkpointer/checkpointer.js';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { GraphErrorType, UserRequest } from '@stypes/graph.type.js';
 import { EventType } from '@enums/event.enums.js';
 import { StreamEvent } from '@langchain/core/tracers/log_stream';
@@ -22,11 +21,12 @@ import {
   isInterrupt,
 } from '@agents/graphs/utils/graph.utils.js';
 import { notify } from '@snakagent/database/queries';
-
+import { v4 as uuidv4 } from 'uuid';
 /**
  * Supervisor agent for managing and coordinating multiple agents
  */
 export class SupervisorAgent extends BaseAgent {
+  supervisorGraphInstance: SupervisorGraph | null = null;
   constructor(agent_config: AgentConfig.Runtime) {
     super('supervisor', AgentType.SUPERVISOR, agent_config);
   }
@@ -40,21 +40,25 @@ export class SupervisorAgent extends BaseAgent {
       if (!this.agentConfig) {
         throw new Error('Agent configuration is required for initialization');
       }
-
       this.pgCheckpointer = await CheckpointerService.getInstance();
       if (!this.pgCheckpointer) {
         throw new Error('Failed to initialize Postgres checkpointer');
       }
-      const graph = await createSupervisorGraph(this);
-      if (!graph) {
+      this.supervisorGraphInstance = await createSupervisorGraph(this);
+      if (!this.supervisorGraphInstance) {
         throw new Error('Failed to create supervisor graph');
       }
-      this.compiledStateGraph = graph;
+
+      this.compiledStateGraph = this.supervisorGraphInstance.getCompiledGraph();
       logger.info('[SupervisorAgent] Initialized successfully');
     } catch (error) {
       logger.error(`[SupervisorAgent] Initialization failed: ${error}`);
       throw error;
     }
+  }
+
+  public getSupervisorGraphInstance(): SupervisorGraph | null {
+    return this.supervisorGraphInstance;
   }
 
   /**
@@ -78,12 +82,13 @@ export class SupervisorAgent extends BaseAgent {
       ls_model_type: chunk.metadata.ls_model_type,
       ls_temperature: chunk.metadata.ls_temperature,
       tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
-      user_request: user_request,
+      content: user_request,
       error: graphError,
       retry: retryCount,
     };
     const chunkOutput: ChunkOutput = {
       event: chunk.event,
+      agent_id: this.agentConfig.id,
       run_id: chunk.run_id,
       checkpoint_id: state.config.configurable?.checkpoint_id,
       thread_id: state.config.configurable?.thread_id,
@@ -154,12 +159,13 @@ export class SupervisorAgent extends BaseAgent {
    * @param input - The input for execution
    * @returns AsyncGenerator yielding ChunkOutput
    */
-  public async *execute(userRequest: UserRequest): AsyncGenerator<ChunkOutput> {
+  public async *execute(request: UserRequest): AsyncGenerator<ChunkOutput> {
     try {
       let currentCheckpointId: string | undefined = undefined;
       let lastChunk: StreamEvent | undefined = undefined;
       let stateSnapshot: StateSnapshot;
       let isInterruptHandle = false;
+      let isTransferHandle = false;
       if (!this.compiledStateGraph) {
         throw new Error('SupervisorAgent is not initialized');
       }
@@ -169,7 +175,7 @@ export class SupervisorAgent extends BaseAgent {
       if (this.pgCheckpointer === null) {
         throw new Error('Checkpointer is not initialized');
       }
-      const threadId = this.agentConfig.id;
+      const threadId = request.thread_id ? request.thread_id : uuidv4();
       const configurable = {
         thread_id: threadId,
         agent_config: this.agentConfig,
@@ -183,22 +189,38 @@ export class SupervisorAgent extends BaseAgent {
         recursionLimit: 500,
         version: 'v2' as const,
       };
-      stateSnapshot = await this.compiledStateGraph.getState(executionConfig);
+      stateSnapshot = await this.compiledStateGraph.getState(executionConfig, {
+        subgraphs: true,
+      });
       if (!stateSnapshot) {
         throw new Error('Failed to retrieve initial graph state');
       }
       const executionInput = isInterrupt(stateSnapshot)
-        ? getInterruptCommand(userRequest.request)
-        : { messages: [new HumanMessage(userRequest.request || '')] };
+        ? getInterruptCommand(request.request)
+        : { messages: [new HumanMessage(request.request || '')] };
 
+      if (
+        stateSnapshot.values.transfer_to &&
+        stateSnapshot.values.transfer_to.length > 0
+      ) {
+        await this.compiledStateGraph.updateState(executionConfig, {
+          transfer_to: [],
+        });
+      }
       for await (const chunk of this.compiledStateGraph.streamEvents(
         executionInput,
         executionConfig
       )) {
-        stateSnapshot = await this.compiledStateGraph.getState(executionConfig);
+        stateSnapshot = await this.compiledStateGraph.getState(
+          executionConfig,
+          { subgraphs: true }
+        );
         if (!stateSnapshot) {
           throw new Error('Failed to retrieve graph state during execution');
         }
+        isTransferHandle =
+          stateSnapshot.values.transfer_to &&
+          stateSnapshot.values.transfer_to.length > 0;
         currentCheckpointId = stateSnapshot.config.configurable?.checkpoint_id;
         lastChunk = chunk;
         if (
@@ -216,30 +238,22 @@ export class SupervisorAgent extends BaseAgent {
         const chunkProcessed = this.processChunkOutput(
           chunk,
           stateSnapshot,
-          userRequest.request,
+          request.request,
           0
         );
         if (chunkProcessed) {
           yield chunkProcessed;
         }
       }
-
-      if (!this.pgCheckpointer) {
-        throw new Error('Checkpointer is not initialized');
-      }
-
-      if (!isInterruptHandle) {
-        const startTime = Date.now();
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        await this.pgCheckpointer.deleteThread(threadId);
-        logger.info(`[SupervisorAgent] deleteThread took ${duration}ms`);
-      }
       if (!lastChunk || !currentCheckpointId) {
         throw new Error('No output from autonomous execution');
       }
+      logger.info(
+        `[SupervisorAgent] Execution completed for thread ${threadId}`
+      );
       yield {
         event: lastChunk.event,
+        agent_id: this.agentConfig.id,
         run_id: lastChunk.run_id,
         from: SupervisorNode.END_GRAPH,
         thread_id: threadId,
@@ -251,7 +265,10 @@ export class SupervisorAgent extends BaseAgent {
           error: undefined,
           final: true,
           is_human: isInterruptHandle,
-          user_request: userRequest.request,
+          content: request.request,
+          transfer_to: isTransferHandle
+            ? stateSnapshot.values.transfer_to
+            : null,
         },
         timestamp: new Date().toISOString(),
       };

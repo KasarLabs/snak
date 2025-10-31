@@ -38,7 +38,6 @@ export {
   validateMemory,
   validateRAG,
   validateMCPServers,
-  validateIdentifiers,
   validateAgentQuotas,
   type AgentDatabaseInterface,
 } from './services/agent-validation.service.js';

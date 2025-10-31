@@ -390,6 +390,67 @@ export async function updateAgent(
 }
 
 /**
+ * Get the agent ID by agent name and user ID
+ *
+ * @param agentName - Agent name to search for
+ * @param userId - User ID
+ * @returns Agent ID if found, null otherwise
+ */
+export async function getAgentIdByName(
+  agentName: string,
+  userId: string
+): Promise<string | null> {
+  const redis = getRedisClient();
+  const userSetKey = `agents:by-user:${userId}`;
+
+  try {
+    // Get all agent IDs for this user
+    const agentIds = await redis.smembers(userSetKey);
+
+    if (agentIds.length === 0) {
+      logger.debug(`No agents found for user ${userId}`);
+      return null;
+    }
+
+    // Build keys for MGET
+    const agentKeys = agentIds.map((id) => `agents:${id}`);
+
+    // Get all agents in a single call
+    const agentJsons = await redis.mget(...agentKeys);
+
+    // Search for the agent with the matching name
+    for (let i = 0; i < agentJsons.length; i++) {
+      const json = agentJsons[i];
+      if (json) {
+        try {
+          const agent = JSON.parse(json) as AgentConfig.OutputWithId;
+          if (agent.profile.name === agentName) {
+            logger.debug(
+              `Found agent with name "${agentName}" for user ${userId}: ${agent.id}`
+            );
+            return agent.id;
+          }
+        } catch (error) {
+          logger.error(
+            `Failed to parse agent JSON for ID ${agentIds[i]}:`,
+            error
+          );
+        }
+      }
+    }
+
+    logger.debug(`No agent found with name "${agentName}" for user ${userId}`);
+    return null;
+  } catch (error) {
+    logger.error(
+      `Error getting agent ID by name "${agentName}" for user ${userId}:`,
+      error
+    );
+    throw error;
+  }
+}
+
+/**
  * Clear all agents for a specific user (useful for testing)
  * Uses optimistic locking (WATCH) to prevent TOCTOU race conditions
  *

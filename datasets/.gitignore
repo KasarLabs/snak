@@ -1,0 +1,8 @@
+# Ignore all CSV files except the example
+*.dataset.csv
+!example-dataset.dataset.csv
+!supervisor-supervisor.dataset.csv
+!supervisor-agentConfigurationHelper.dataset.csv
+!supervisor-mcpConfigurationHelper.dataset.csv
+!supervisor-snakRagAgentHelper.dataset.csv
+!supervisor-agentSelectorHelper.dataset.csv

@@ -25,7 +25,7 @@ import {
   getInterruptCommand,
   isInterrupt,
 } from '@agents/graphs/utils/graph.utils.js';
-
+import { v4 as uuidv4 } from 'uuid';
 /**
  * Main agent for interacting with the Starknet blockchain
  * Supports multiple execution modes: interactive, autonomous, and hybrid
@@ -189,13 +189,14 @@ export class SnakAgent extends BaseAgent {
       ls_model_type: chunk.metadata.ls_model_type,
       ls_temperature: chunk.metadata.ls_temperature,
       tokens: chunk.data.output?.usage_metadata?.total_tokens ?? null,
-      user_request: user_request,
+      content: user_request,
       error: graphError,
       retry: retryCount,
     };
 
     const chunkOutput: ChunkOutput = {
       event: chunk.event,
+      agent_id: this.agentConfig.id,
       run_id: chunk.run_id,
       checkpoint_id: state.config.configurable?.checkpoint_id,
       thread_id: state.config.configurable?.thread_id,
@@ -304,7 +305,7 @@ export class SnakAgent extends BaseAgent {
       const initialMessages: BaseMessage[] = [
         new HumanMessage(request.request),
       ];
-      const threadId = this.agentConfig.id;
+      const threadId = request.thread_id ? request.thread_id : uuidv4();
       const configurable = {
         thread_id: threadId,
         user_request: {
@@ -392,6 +393,7 @@ export class SnakAgent extends BaseAgent {
         }
         yield {
           event: lastChunk.event,
+          agent_id: this.agentConfig.id,
           run_id: lastChunk.run_id,
           from: GraphNode.END_GRAPH,
           thread_id: threadId,
@@ -407,7 +409,7 @@ export class SnakAgent extends BaseAgent {
             error: graphError,
             final: true,
             is_human: isInterruptHandle,
-            user_request: request.request,
+            content: request.request,
           },
           timestamp: new Date().toISOString(),
         };

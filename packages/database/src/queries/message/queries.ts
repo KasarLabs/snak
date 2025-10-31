@@ -145,4 +145,33 @@ export namespace message {
     );
     await Postgres.query(q);
   }
+  /**
+   * Check if a thread_id exists for a specific agent and user.
+   *
+   * @param { string } threadId - Thread identifier to check.
+   * @param { string } agentId - Agent identifier.
+   * @param { string } userId - User identifier.
+   *
+   * @returns { Promise<boolean> } True if the thread_id exists for the agent and user, false otherwise.
+   *
+   * @throws { DatabaseError } If a database operation fails.
+   */
+  export async function check_thread_exists_for_agent(
+    threadId: string,
+    agentId: string,
+    userId: string
+  ): Promise<boolean> {
+    const q = new Postgres.Query(
+      `SELECT EXISTS(
+        SELECT 1 FROM message m
+        INNER JOIN agents a ON m.agent_id = a.id
+        WHERE m.thread_id = $1
+        AND m.agent_id = $2
+        AND a.user_id = $3
+      ) as exists`,
+      [threadId, agentId, userId]
+    );
+    const result = await Postgres.query<{ exists: boolean }>(q);
+    return result[0].exists;
+  }
 }

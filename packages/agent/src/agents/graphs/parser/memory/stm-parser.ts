@@ -120,13 +120,6 @@ function formatBaseMessageToXML(
   indent: number = 0
 ): string {
   try {
-    // console.log('Formatting BaseMessage to XML:');
-    // console.log('Message constructor:', message.constructor.name);
-    // console.log('Is AIMessageChunk:', message instanceof AIMessageChunk);
-    // console.log('Is AIMessage:', message instanceof AIMessage);
-    // console.log('Is ToolMessage:', message instanceof ToolMessage);
-    // console.log('Is HumanMessage:', message instanceof HumanMessage);
-
     if (message instanceof AIMessageChunk || message instanceof AIMessage) {
       return formatAiMessagetoXML(message, indent);
     } else if (

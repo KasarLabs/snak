@@ -26,7 +26,11 @@ import { AgentResponse } from '@snakagent/core';
 
 @WebSocketGateway({
   cors: {
-    origin: 'http://localhost:4000',
+    origin: [
+      'http://localhost:4000',
+      'http://localhost:3001',
+      'http://localhost:3000',
+    ],
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -54,10 +58,23 @@ export class MyGateway {
           throw new WsException('Socket connection is invalid or disconnected');
         }
         logger.info('handleUserRequest called');
-        logger.debug(`handleUserRequest: ${JSON.stringify(userRequest)}`);
-
+        logger.debug('Request payload:', {
+          agent_id: userRequest.request.agent_id,
+          thread_id: userRequest.request.thread_id,
+          content: userRequest.request.content,
+          content_length: userRequest.request.content?.length ?? 0,
+        });
         const userId = ControllerHelpers.getUserIdFromSocket(client);
         let agent: BaseAgent | undefined;
+
+        // Validate content is not empty
+        if (
+          !userRequest.request.content ||
+          userRequest.request.content.trim().length === 0
+        ) {
+          logger.warn('Request validation failed: empty content');
+          throw new ServerError('E04TA120'); // Invalid request format
+        }
 
         agent = await this.agentFactory.getAgentInstance(
           userRequest.request.agent_id,
@@ -92,150 +109,6 @@ export class MyGateway {
       'handleUserRequest',
       client,
       'onAgentRequest'
-    );
-  }
-
-  @SubscribeMessage('stop_agent')
-  async stopAgent(
-    @MessageBody() userRequest: { agent_id: string; socket_id: string },
-    @ConnectedSocket() client: Socket
-  ): Promise<void> {
-    await ErrorHandler.handleWebSocketError(
-      async () => {
-        logger.info('stop_agent called');
-        const { userId, agent } =
-          await ControllerHelpers.getSocketUserAndVerifyAgentOwnership(
-            client,
-            this.agentFactory,
-            userRequest.agent_id
-          );
-
-        // Check if the agent is a supervisor agent
-        await this.supervisorService.validateNotSupervisorForModification(
-          userRequest.agent_id,
-          userId
-        );
-
-        agent.stop();
-        const response: AgentResponse = ResponseFormatter.success(
-          `Agent ${userRequest.agent_id} stopped`
-        );
-        client.emit('onStopAgentRequest', response);
-      },
-      'stopAgent',
-      client,
-      'onStopAgentRequest',
-      'E02TA100'
-    );
-  }
-
-  @SubscribeMessage('init_agent')
-  async addAgent(
-    @MessageBody() userRequest: AddAgentRequestDTO,
-    @ConnectedSocket() client: Socket
-  ): Promise<void> {
-    await ErrorHandler.handleWebSocketError(
-      async () => {
-        logger.info('init_agent called');
-
-        const userId = ControllerHelpers.getUserIdFromSocket(client);
-
-        this.supervisorService.validateNotSupervisorAgent(userRequest.agent);
-
-        await this.agentFactory.addAgent(userRequest.agent, userId);
-        const response: AgentResponse = ResponseFormatter.success(
-          `Agent ${userRequest.agent.profile.name} added`
-        );
-        client.emit('onInitAgentRequest', response);
-      },
-      'addAgent',
-      client,
-      'onInitAgentRequest',
-      'E02TA200'
-    );
-  }
-
-  @SubscribeMessage('delete_agent')
-  async deleteAgent(
-    @MessageBody() userRequest: AgentDeleteRequestDTO,
-    @ConnectedSocket() client: Socket
-  ): Promise<void> {
-    await ErrorHandler.handleWebSocketError(
-      async () => {
-        logger.info('delete_agent called');
-        const { userId } =
-          await ControllerHelpers.getSocketUserAndVerifyAgentConfigOwnership(
-            client,
-            this.agentFactory,
-            userRequest.agent_id
-          );
-
-        // Check if the agent is a supervisor agent
-        await this.supervisorService.validateNotSupervisorForDeletion(
-          userRequest.agent_id,
-          userId
-        );
-
-        await this.agentFactory.deleteAgent(userRequest.agent_id, userId);
-
-        const response: AgentResponse = ResponseFormatter.success(
-          `Agent ${userRequest.agent_id} deleted`
-        );
-        client.emit('onDeleteAgentRequest', response);
-      },
-      'deleteAgent',
-      client,
-      'onDeleteAgentRequest',
-      'E02TA300'
-    );
-  }
-
-  @SubscribeMessage('get_agents')
-  async getAgents(@ConnectedSocket() client: Socket): Promise<void> {
-    await ErrorHandler.handleWebSocketError(
-      async () => {
-        logger.info('getAgents called');
-
-        const userId = ControllerHelpers.getUserIdFromSocket(client);
-        const agents = await this.agentService.getAllAgentsOfUser(userId);
-
-        const response: AgentResponse = ResponseFormatter.success(agents);
-        client.emit('onGetAgentsRequest', response);
-      },
-      'getAgents',
-      client,
-      'onGetAgentsRequest',
-      'E05TA100'
-    );
-  }
-
-  @SubscribeMessage('get_messages_from_agent')
-  async getMessages(
-    @MessageBody() userRequest: MessageFromAgentIdDTO,
-    @ConnectedSocket() client: Socket
-  ): Promise<void> {
-    await ErrorHandler.handleWebSocketError(
-      async () => {
-        logger.info('getMessages called');
-        const userId = ControllerHelpers.getUserIdFromSocket(client);
-        const messages = await this.agentService.getMessageFromAgentId(
-          {
-            agent_id: userRequest.agent_id,
-            thread_id: userRequest.thread_id,
-            limit_message: userRequest.limit_message,
-          },
-          userId
-        );
-        if (!messages) {
-          throw new ServerError('E01TA400');
-        }
-        const response: AgentResponse = ResponseFormatter.success(messages);
-        client.emit('onGetMessagesRequest', response);
-      },
-      'getMessages',
-      client,
-      'onGetMessagesRequest',
-      'E05TA100'
     );
   }
 }

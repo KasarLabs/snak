@@ -21,8 +21,8 @@ export class ErrorLoggingInterceptor implements NestInterceptor {
           stack: error.stack,
         });
 
-        return throwError(() => error);
-      })
+        return throwError(() => error) as any;
+      }) as any
     );
   }
 }

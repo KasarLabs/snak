@@ -1,5 +1,5 @@
 import { Tool, DynamicStructuredTool } from '@langchain/core/tools';
-import { AgentConfig } from '@snakagent/core';
+import { AgentConfig, AgentProfile } from '@snakagent/core';
 import {
   createAgentTool,
   listAgentsTool,
@@ -12,6 +12,7 @@ import {
   messageAskUserTool,
 } from './tools/index.js';
 import { searchMcpServerTool } from './tools/searchMcpServerTools.js';
+import { createExecuteHandoffTools } from './tools/executeHandoffTools.js';
 
 /**
  * Shared configuration tools reserved for supervisor agents.
@@ -34,19 +35,21 @@ export function getSupervisorConfigTools(
   ];
 }
 
-export function getAgentConfigurationHelperTools(
+export function getSupervisorConfigModifierTools(
   agentConfig: AgentConfig.Runtime
 ) {
   return [
     createAgentTool(agentConfig),
-    listAgentsTool(agentConfig),
     deleteAgentTool(agentConfig),
-    readAgentTool(agentConfig),
     updateAgentTool(agentConfig),
   ];
 }
 
-export function getMcpServerHelperTools(agentConfig: AgentConfig.Runtime) {
+export function getSupervisorReadTools(agentConfig: AgentConfig.Runtime) {
+  return [readAgentTool(agentConfig), listAgentsTool(agentConfig)];
+}
+
+export function getSupervisorMcpModifier(agentConfig: AgentConfig.Runtime) {
   return [
     addMcpServerTool(agentConfig),
     removeMcpServerTool(agentConfig),
@@ -55,7 +58,18 @@ export function getMcpServerHelperTools(agentConfig: AgentConfig.Runtime) {
   ];
 }
 
-export function getCommunicationHelperTools() {
+export function getSupevisorHandoffTools(
+  agentConfig: AgentConfig.Runtime,
+  agentsAvailable: AgentConfig.OutputWithId[]
+) {
+  const transferTools: Array<DynamicStructuredTool> = [];
+  for (const agent of agentsAvailable) {
+    transferTools.push(createExecuteHandoffTools(agent.profile.name, agent.id));
+  }
+  return transferTools;
+}
+
+export function getSupervisorCommunicationTools() {
   return [messageAskUserTool()];
 }
 

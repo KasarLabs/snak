@@ -191,13 +191,19 @@ export const MemoryTimeoutsSchema = z.object({
 // Schema for MemoryConfig
 export const MemoryConfigSchema = z.object({
   ltm_enabled: z.boolean().optional().describe('Long-term memory enabled'),
-  size_limits: MemorySizeLimitsSchema.optional().describe('Memory size limits'),
-  thresholds: MemoryThresholdsSchema.optional().describe('Memory thresholds'),
-  timeouts: MemoryTimeoutsSchema.optional().describe('Memory timeouts'),
+  size_limits: MemorySizeLimitsSchema.partial()
+    .optional()
+    .describe('Memory size limits'),
+  thresholds: MemoryThresholdsSchema.partial()
+    .optional()
+    .describe('Memory thresholds'),
+  timeouts: MemoryTimeoutsSchema.partial()
+    .optional()
+    .describe('Memory timeouts'),
   strategy: z
     .enum(['holistic', 'categorized'])
     .optional()
-    .describe('Memory strategy'),
+    .describe('Memory strategy holistic or categorized'),
 });
 const ragGuardsValues: GuardsConfig['agents']['rag'] =
   getGuardValue('agents.rag');
@@ -250,15 +256,6 @@ export const McpServersArraySchema = z
   .array(McpServerConfigSchema)
   .max(mcpServersGuardsValues.max_servers)
   .default([]);
-
-// Schema for PromptsConfig
-export const PromptsConfigSchema = z.object({
-  id: z
-    .string()
-    .max(getGuardValue('agents.prompts_id_max_length'))
-    .optional()
-    .describe('Prompts ID'),
-});
 
 // Schema for selecting an agent
 export const SelectAgentSchema = z.object({

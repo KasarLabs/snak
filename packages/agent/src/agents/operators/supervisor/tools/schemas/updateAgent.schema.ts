@@ -17,12 +17,9 @@ export const UpdateAgentSchema = SelectAgentSchema.extend({
         .describe('Agent profile configuration (partial)'),
       memory: MemoryConfigSchema.optional().describe('Memory configuration'),
       rag: RAGConfigSchema.optional().describe('RAG configuration'),
-      prompts_id: z
-        .string()
-        .uuid()
+      graph: GraphConfigSchema.partial()
         .optional()
-        .describe('Existing prompts configuration identifier'),
-      graph: GraphConfigSchema.optional().describe('Graph configuration'),
+        .describe('Graph configuration'),
     })
     .describe('Object containing only the fields that need to be updated'),
 });

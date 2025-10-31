@@ -99,6 +99,7 @@ export namespace memory {
     user_id: string;
     task_id: string;
     step_id: string;
+    thread_id: string;
     embedding: number[];
     created_at?: Date;
     accessed_at?: Date;
@@ -115,6 +116,7 @@ export namespace memory {
   interface HolisticMemoryBase extends MemoryBase {
     request: string;
     content: string;
+    thread_id: string;
     type: HolisticMemoryEnumType;
   }
   interface EpisodicMemoryBase extends MemoryBase {
@@ -166,11 +168,12 @@ export namespace memory {
     similarityThreshold: number
   ): Promise<INSERT_HOLISTIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM insert_holistic_memory_smart($1, $2, $3, $4, $5, $6, $7,$8);`,
+      `SELECT * FROM insert_holistic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8, $9);`,
       [
         memory.user_id,
         memory.task_id,
         memory.step_id,
+        memory.thread_id,
         memory.type,
         memory.content,
         JSON.stringify(memory.embedding),
@@ -187,11 +190,12 @@ export namespace memory {
     simitlarityThreshold: number
   ): Promise<INSERT_EPISODIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5, $6, $7);`,
+      `SELECT * FROM insert_episodic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8);`,
       [
         memory.user_id,
         memory.task_id,
         memory.step_id,
+        memory.thread_id,
         memory.content,
         JSON.stringify(memory.embedding),
         simitlarityThreshold,
@@ -207,11 +211,12 @@ export namespace memory {
     similarityThreshold: number
   ): Promise<UPSERT_SEMANTIC_MEMORY_OUTPUT> {
     const q = new Postgres.Query(
-      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8);`,
+      `SELECT * FROM upsert_semantic_memory_smart($1, $2, $3, $4, $5, $6, $7, $8, $9);`,
       [
         memory.user_id,
         memory.task_id,
         memory.step_id,
+        memory.thread_id,
         memory.fact,
         JSON.stringify(memory.embedding),
         similarityThreshold,
@@ -277,6 +282,7 @@ export namespace memory {
     memory_id: string;
     task_id: string;
     step_id: string;
+    thread_id: string;
     content: string;
     similarity: number;
     metadata: any; // JSONB from PostgreSQL
@@ -291,6 +297,7 @@ export namespace memory {
     content: string;
     task_id?: string;
     step_id?: string;
+    thread_id?: string;
     created_at: Date;
     updated_at: Date;
     confidence: number;
@@ -308,21 +315,22 @@ export namespace memory {
   export async function retrieve_memory(
     strategy: 'holistic' | 'categorized',
     userId: string,
+    threadId: string,
     embedding: number[],
     limit: number,
     threshold: number
   ): Promise<Similarity[]> {
     if (strategy === 'categorized') {
       const q = new Postgres.Query(
-        `SELECT * FROM retrieve_similar_categorized_memories($1, $2, $3, $4)`,
-        [userId, JSON.stringify(embedding), threshold, limit]
+        `SELECT * FROM retrieve_similar_categorized_memories($1, $2, $3, $4, $5)`,
+        [userId, threadId, JSON.stringify(embedding), threshold, limit]
       );
       const result = await Postgres.query<Similarity>(q);
       return result;
     } else if (strategy === 'holistic') {
       const q = new Postgres.Query(
-        `SELECT * FROM retrieve_similar_holistic_memories($1, $2, $3, $4)`,
-        [userId, JSON.stringify(embedding), threshold, limit]
+        `SELECT * FROM retrieve_similar_holistic_memories($1, $2, $3, $4, $5)`,
+        [userId, threadId, JSON.stringify(embedding), threshold, limit]
       );
       const result = await Postgres.query<Similarity>(q);
       return result;
@@ -343,11 +351,12 @@ export namespace memory {
   export async function get_memories_by_task_id(
     userId: string,
     taskId: string,
+    threadId: string,
     limit: number | null
   ): Promise<MemoryRetrieval[]> {
     const q = new Postgres.Query(
-      `SELECT * FROM get_memories_by_task_id($1, $2, $3)`,
-      [userId, taskId, limit]
+      `SELECT * FROM get_memories_by_task_id($1, $2, $3, $4)`,
+      [userId, taskId, threadId, limit]
     );
     const result = await Postgres.query<MemoryRetrieval>(q);
     return result;
@@ -367,11 +376,12 @@ export namespace memory {
   export async function get_memories_by_step_id(
     userId: string,
     stepId: string,
+    threadId: string,
     limit: number | null
   ): Promise<MemoryRetrieval[]> {
     const q = new Postgres.Query(
-      `SELECT * FROM get_memories_by_step_id($1, $2, $3,$4)`,
-      [userId, stepId, limit]
+      `SELECT * FROM get_memories_by_step_id($1, $2, $3, $4)`,
+      [userId, stepId, threadId, limit]
     );
     const result = await Postgres.query<MemoryRetrieval>(q);
     return result;

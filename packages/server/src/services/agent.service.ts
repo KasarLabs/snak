@@ -42,6 +42,7 @@ export class AgentService {
 
       const user_request: UserRequest = {
         request: userRequest.content || '',
+        thread_id: userRequest.thread_id || undefined,
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 
@@ -132,6 +133,7 @@ export class AgentService {
     try {
       const user_request: UserRequest = {
         request: userRequest.content || '',
+        thread_id: userRequest.thread_id || undefined,
         hitl_threshold: userRequest.hitl_threshold ?? undefined,
       };
 
@@ -215,8 +217,8 @@ export class AgentService {
       const limit = userRequest.limit_message || 10;
       const res = await agents.getMessagesOptimized(
         userRequest.agent_id,
-        userRequest.thread_id,
         userId,
+        userRequest.thread_id ?? null,
         false,
         limit,
         0
@@ -233,7 +235,7 @@ export class AgentService {
     try {
       const res = await agents.updateModelConfig(
         userId,
-        model.provider,
+        model.model_provider,
         model.modelName,
         model.temperature || 0.7,
         model.maxTokens || 4096

@@ -46,7 +46,7 @@ export class UpdateModelConfigDTO {
     message:
       'Provider must contain only alphanumeric characters, hyphens, and underscores',
   })
-  provider: string;
+  model_provider: string;
 
   @IsNotEmpty()
   @IsString()
