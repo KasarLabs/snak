@@ -199,8 +199,8 @@ BEGIN
             hm.updated_at
         FROM holistic_memories hm
         WHERE user_id = p_user_id
-            AND thread_id = p_thread_id
-            AND 1 - (embedding <=> p_embedding) >= p_similarity_threshold
+            AND hm.thread_id = p_thread_id
+            AND 1 - (hm.embedding <=> p_embedding) >= p_similarity_threshold
         ORDER BY embedding <=> p_embedding
         LIMIT p_limit
     LOOP
