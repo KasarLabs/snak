@@ -63,7 +63,7 @@ export type GraphConfigInitialized = Modify<
  */
 export enum MemoryStrategy {
   // Will be implemented later
-  HOLISTIC = 'holistic', // Perfect for interactive agent or autonomus agent with a short-life
+  HOLISTIC = 'holistic', // Perfect for interactive agent or autonomous agent with a short-life
   CATEGORIZED = 'categorized', // Perfect for long-life autonomous agent
 }
 
